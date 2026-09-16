@@ -67,6 +67,21 @@ npm run build     # type-check (tsc --noEmit) + production build
 npm run preview   # preview the production build locally
 ```
 
+### Windows desktop shortcut
+
+Instead of opening a terminal and running `git pull` / `npm run dev` by
+hand every time, set up a one-click "Ritmo de Lima" desktop shortcut once:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\create-desktop-shortcut.ps1
+```
+
+(or right-click `scripts/create-desktop-shortcut.ps1` -> "Run with
+PowerShell"). This creates a `Ritmo de Lima` shortcut on your Desktop
+pointing at `scripts/run-app.bat`, which does `git pull`, starts
+`npm run dev` in its own window, and opens `http://localhost:5173/` in
+Chrome. From then on, just double-click the desktop icon.
+
 ## Project structure
 
 ```
