@@ -14,8 +14,13 @@ export const UNIQUE_ID_FIELD = "osm_id";
 /** Classification fields available on the layer, used for popups. */
 export const OCC_TYPE_FIELD = "OCC_TYPE";
 
-/** How long a full simulated 24-hour day takes to play, in seconds. */
-export const DAY_DURATION_SECONDS = 30;
+/**
+ * How long a full simulated 24-hour day takes to play, in seconds.
+ * Kept short so the day/night pulse reads clearly in a live demo — long
+ * enough to see the city's rhythm, short enough to stay hypnotic rather
+ * than slow.
+ */
+export const DAY_DURATION_SECONDS = 10;
 
 /**
  * Minimum time between renderer updates, in milliseconds. The animation

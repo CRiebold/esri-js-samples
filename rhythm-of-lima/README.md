@@ -17,7 +17,7 @@ occupancy data" label in the app itself.
   using a continuous Color Visual Variable, driven by an Arcade expression
   that linearly interpolates between the two hourly `OCC_HH` fields that
   bracket the current time (circularly, so 23:30 blends `OCC_23`/`OCC_00`).
-- Plays a full simulated day in ~30 real seconds, looping continuously, with
+- Plays a full simulated day in ~10 real seconds, looping continuously, with
   a large digital clock, a draggable 24-hour timeline, and Play/Pause.
 - Uses a dark, minimal basemap with a subtle bloom effect so the busiest
   (brightest) buildings visibly glow.
@@ -81,7 +81,7 @@ value.
 at different rates:
 
 - **The clock tick** (`onTick`) fires every `requestAnimationFrame`, using
-  wall-clock delta time so a simulated day always takes ~30 real seconds
+  wall-clock delta time so a simulated day always takes ~10 real seconds
   regardless of frame rate. It's cheap (just updates the clock label and
   timeline position), so it runs unthrottled for a perfectly smooth UI.
 - **The renderer update** (`onRendererUpdate`) is throttled to roughly
