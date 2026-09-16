@@ -107,7 +107,7 @@ export function getOccupancyExpression(simulatedHour: number): string {
 
     var base = shape.floor + (maxOcc - shape.floor) * Exp(-(d * d) / (2 * shape.width * shape.width));
 
-    var ripplePhase = (Mod($feature.${UNIQUE_ID_FIELD}, 997) / 997) * 6.283185;
+    var ripplePhase = (($feature.${UNIQUE_ID_FIELD} % 997) / 997) * 6.283185;
     var rippleWave = Sin(${hour} * (6.283185 * ${RIPPLE_CYCLES_PER_DAY} / 24) + ripplePhase);
     var rippleBoost = Max(0, rippleWave) * ${RIPPLE_AMPLITUDE};
 
