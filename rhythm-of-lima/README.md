@@ -182,15 +182,15 @@ This app needs Arcade because it blends *two different fields*
 variable can't express — so that cost is inherent to smooth half-hour
 interpolation, not a bug.
 
-The other likely factor: that sample's map opens at a fixed `zoom="12"` on
-one neighborhood and caps `minScale` so you can never zoom out far enough
-to render its full 1M+ building dataset at once. This app instead fits the
-view to the *entire* Lima buildings extent on load (per the brief's
-"city-wide view" requirement), so most or all of the ~105k buildings can be
-on-screen — and being re-colored — simultaneously. Constraining the default
-view similarly (e.g. a `minScale` on `MapView.constraints`) would trade
-away that full-city view for smoother playback, and is a call worth making
-deliberately rather than baking in silently.
+The other factor: that sample's map opens at a fixed `zoom="12"` on one
+neighborhood and caps `minScale` so you can never zoom out far enough to
+render its full 1M+ building dataset at once — you still have complete
+freedom to pan and zoom, just not *out past* that point. This app now does
+the same: `view.constraints.minScale` is capped at `LIMA_FALLBACK_SCALE`
+(`src/config.ts`), so the initial fit to the real buildings extent
+(`layer.fullExtent`) is automatically clamped to that scale if the real
+data spans a wider area, and the user can't zoom out past it either.
+Panning and zooming in remain completely unrestricted.
 
 If animation feels sluggish on real hardware, `RENDERER_UPDATE_INTERVAL_MS`
 in `src/config.ts` is the first knob to turn (higher = fewer, cheaper

@@ -34,6 +34,14 @@ export const DAY_DURATION_SECONDS = 6;
  */
 export const RENDERER_UPDATE_INTERVAL_MS = 150;
 
-/** Lima, Peru — used as a fallback center if the layer's extent can't be read. */
+/**
+ * Lima, Peru — the fallback center/scale if the layer's extent can't be
+ * read, AND the view's hard `minScale` cap (see src/map.ts). Esri's own
+ * "Animate color visual variable" sample bounds how far you can zoom out
+ * for the same reason: past a certain scale, every building ends up on
+ * screen — and being re-colored — simultaneously, which is real CPU cost
+ * at ~105k features. Panning/zooming in stays completely free; this only
+ * stops zooming OUT past a "recognizable city" view.
+ */
 export const LIMA_CENTER: [number, number] = [-77.0428, -12.0464];
 export const LIMA_FALLBACK_SCALE = 300000;

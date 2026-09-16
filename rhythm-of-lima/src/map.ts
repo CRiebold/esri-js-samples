@@ -141,13 +141,22 @@ export async function createLimaView(container: HTMLDivElement): Promise<LimaVie
     center: LIMA_CENTER,
     scale: LIMA_FALLBACK_SCALE,
     ui: { components: [] }, // keep the map free of default widgets; the map is the star
-    constraints: { snapToZoom: false }
+    // Esri's own "Animate color visual variable" sample caps how far you
+    // can zoom out (`minScale`) so its 1M+ buildings are never all on
+    // screen — and being re-colored — at once. We do the same, bounded at
+    // roughly the curated city-wide fallback view, so panning/zooming stays
+    // fully free without letting the worst case (every building visible
+    // and animating simultaneously) become the default or even reachable.
+    constraints: { snapToZoom: false, minScale: LIMA_FALLBACK_SCALE }
   });
 
   await view.when();
 
-  // Prefer the real extent of the buildings once known, falling back to the
-  // hardcoded Lima city view if the service doesn't report one.
+  // Prefer centering on the real extent of the buildings once known.
+  // view.goTo() automatically respects constraints.minScale above, so this
+  // can never zoom out further than the curated city-wide fallback view —
+  // a citywide dataset's true extent can easily be larger than what's
+  // comfortable to animate all at once.
   if (layer.fullExtent) {
     await view.goTo(layer.fullExtent.expand(1.08));
   }
