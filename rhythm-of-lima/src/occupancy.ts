@@ -46,9 +46,19 @@ interface CategoryShape {
  * ramping up through the morning, business/retail peaking midday, and a
  * shift back toward residential/hospitality in the evening. Must match
  * CATEGORY_BASE's category list in scripts/classify_occ_type.py.
+ *
+ * residential's width is deliberately much narrower than the others
+ * (0.6 vs. 2-9): it's ~84% of the city, so even spread across a wide
+ * PEAK_HR_JITTER window, a wide curve meant most of that 84% was still
+ * within shining range of ITS OWN peak at any given nighttime moment —
+ * measured at ~73k of 88k residential buildings (>=70) simultaneously at
+ * a single hour. At 0.6, that drops to ~9-10k, matching the density that
+ * the rest of the city's categories, spread over the whole day, already
+ * produce on their own (~9.6-9.9k citywide at a typical daytime hour) —
+ * so night no longer reads as far more crowded than day.
  */
 const CATEGORY_SHAPES: Record<string, CategoryShape> = {
-  residential: { width: 4.5, floor: 18 },
+  residential: { width: 0.6, floor: 18 },
   office: { width: 3, floor: 8 },
   education: { width: 2.2, floor: 4 },
   healthcare: { width: 9, floor: 45 },
