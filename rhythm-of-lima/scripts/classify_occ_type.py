@@ -80,18 +80,34 @@ NAME_PATTERNS = [(re.compile(p, re.IGNORECASE), cat) for p, cat in NAME_KEYWORDS
 # Base (peakHour, peakOccMax) per category — must match CATEGORY_PROFILES'
 # peak/max in src/occupancy.ts. width/floor stay there since they're
 # looked up by OCC_TYPE at render time, not stored per building.
+#
+# Every base here is deliberately kept at 84+ so that, once
+# peak_hour_and_max()'s +/-OCC_MAX_JITTER lands, EVERY building's peak
+# value clears the color ramp's "70" (purple) stop with room to spare —
+# the whole point of the animation is that every building visibly lights
+# up once a day, not just the "busiest" categories. An earlier version of
+# this table had "other" at 30 and "religious" at 60, which meant those
+# buildings (and roughly half of "residential"/"industrial") never
+# brightened past the idle, translucent-white state all day. Categories
+# still differ in WHEN they peak (peak hour) and how long/high they idle
+# (floor/width in src/occupancy.ts) — just not in whether they shine.
 CATEGORY_BASE = {
-    "residential": (1, 70),
-    "office": (12.5, 85),
-    "education": (10, 90),
-    "healthcare": (14, 90),
-    "hospitality": (22, 80),
-    "industrial": (11, 70),
-    "religious": (9.5, 60),
-    "civic_transit": (8.5, 75),
-    "retail_food": (13.5, 85),
-    "other": (12, 30),
+    "residential": (1, 90),
+    "office": (12.5, 90),
+    "education": (10, 92),
+    "healthcare": (14, 92),
+    "hospitality": (22, 88),
+    "industrial": (11, 86),
+    "religious": (9.5, 86),
+    "civic_transit": (8.5, 88),
+    "retail_food": (13.5, 90),
+    "other": (12, 84),
 }
+
+# How far occ_max can jitter from its category base, per building. Kept
+# small enough that even the lowest base (84) minus the jitter (8) still
+# lands at 76 — safely past the "70" stop for every single building.
+OCC_MAX_JITTER = 8
 
 
 def det_rand(seed: int) -> float:
@@ -122,7 +138,7 @@ def peak_hour_and_max(osm_id: int, occ_type: str) -> tuple[float, float]:
     r1 = det_rand(osm_id)
     r2 = det_rand(osm_id * 7 + 13)
     peak_hr = (base_peak + (r1 * 2 - 1) * 1.5) % 24
-    occ_max = max(0.0, min(100.0, base_max + (r2 * 2 - 1) * 10))
+    occ_max = max(0.0, min(100.0, base_max + (r2 * 2 - 1) * OCC_MAX_JITTER))
     return round(peak_hr, 2), round(occ_max, 1)
 
 

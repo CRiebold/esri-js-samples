@@ -137,8 +137,15 @@ numbers per building — **not** computed later at render time:
 Both start from the building's category's typical value (`CATEGORY_BASE` in
 the script) and add a small deterministic jitter seeded by the building's
 own `osm_id`, so buildings in the same category don't all peak at the exact
-same minute — e.g. `31146352,healthcare,12.93,84.9` is one specific
+same minute — e.g. `31146352,healthcare,12.93,87.9` is one specific
 hospital peaking at 12:56, not "healthcare in general."
+
+Every category's base `OCC_MAX` is deliberately kept at 84+, with jitter
+capped so it can't push any building below 76 — comfortably past the color
+ramp's "70" (purple) stop. The point of the animation is that *every*
+building visibly lights up once a day, not just the busiest categories;
+they only differ in *when* they peak and how high/long they idle
+(`floor`/`width`, below), never in *whether* they shine.
 
 Resulting distribution across the real ~105k buildings: **84% residential**,
 6% retail_food, 4% office, 2% education, and the remaining ~4% split across
