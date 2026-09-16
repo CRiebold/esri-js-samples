@@ -1,0 +1,21 @@
+{
+  "name": "rhythm-of-lima",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "The Rhythm of Lima — a 24-hour simulated building occupancy visualization built with the ArcGIS Maps SDK for JavaScript.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@arcgis/core": "^5.1.24"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0",
+    "vite-plugin-static-copy": "^4.1.1"
+  }
+}

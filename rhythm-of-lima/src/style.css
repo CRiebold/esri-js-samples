@@ -1,0 +1,227 @@
+:root {
+  --bg: #050810;
+  --ink: #e6f3f7;
+  --ink-dim: #7f97a3;
+  --accent: #5fe3ff;
+  --accent-dim: rgba(95, 227, 255, 0.35);
+  --panel: rgba(6, 12, 20, 0.72);
+  --panel-border: rgba(255, 255, 255, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Avenir Next", "Segoe UI", system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+}
+
+#viewDiv {
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+}
+
+/* --- Loading / error overlays -------------------------------------- */
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  z-index: 50;
+  transition: opacity 0.4s ease;
+}
+
+.overlay--hidden {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.overlay-content {
+  text-align: center;
+  color: var(--ink-dim);
+}
+
+.spinner {
+  width: 34px;
+  height: 34px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  border: 2px solid var(--panel-border);
+  border-top-color: var(--accent);
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.error-title {
+  color: var(--ink);
+  font-size: 1.1rem;
+  margin: 0 0 8px;
+}
+
+.error-message {
+  max-width: 480px;
+  font-size: 0.9rem;
+  color: var(--ink-dim);
+}
+
+/* --- Title block ------------------------------------------------------ */
+
+#titleBlock {
+  position: absolute;
+  top: 28px;
+  left: 32px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+#titleBlock h1 {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.6);
+}
+
+#titleBlock p {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: var(--ink-dim);
+  letter-spacing: 0.02em;
+}
+
+/* --- Tooltip ------------------------------------------------------------ */
+
+.tooltip {
+  position: absolute;
+  z-index: 20;
+  padding: 8px 12px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: var(--ink);
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+  transform: translate(-50%, -100%);
+  white-space: nowrap;
+}
+
+.tooltip strong {
+  color: var(--accent);
+}
+
+.tooltip--hidden {
+  display: none;
+}
+
+/* --- HUD / bottom control bar ------------------------------------------ */
+
+#hud {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 10;
+  width: min(680px, calc(100vw - 48px));
+  padding: 16px 24px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  backdrop-filter: blur(10px);
+  text-align: center;
+}
+
+#clock {
+  font-family: "SF Mono", "Roboto Mono", "Consolas", monospace;
+  font-size: 2.6rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  text-shadow: 0 0 18px var(--accent-dim);
+  margin-bottom: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+#timelineRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+#playPauseBtn {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+#playPauseBtn:hover {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+#timeline {
+  flex: 1 1 auto;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    #1a2530 0%,
+    var(--accent) var(--fill, 0%),
+    #1a2530 var(--fill, 0%)
+  );
+  outline: none;
+  cursor: pointer;
+}
+
+#timeline::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-dim);
+  cursor: pointer;
+}
+
+#timeline::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-dim);
+  cursor: pointer;
+}
+
+#disclaimer {
+  margin: 12px 0 0;
+  font-size: 0.7rem;
+  color: var(--ink-dim);
+  letter-spacing: 0.01em;
+}
