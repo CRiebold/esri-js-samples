@@ -6,9 +6,9 @@ how simulated building occupancy changes across a 24-hour day, over roughly
 is in Spanish for its intended audience; this README is in English for
 developers.
 
-The building geometries are real (OpenStreetMap). The hourly occupancy
-values are **synthetic**, generated for this demo — see the "Datos de
-ocupación sintéticos" label in the app itself.
+The building geometries are real (OpenStreetMap). The occupancy simulation
+is **synthetic**, generated for this demo — see the "Datos de ocupación
+sintéticos" label in the app itself, and "Data model" below for exactly how.
 
 ## What it does
 
@@ -16,9 +16,10 @@ ocupación sintéticos" label in the app itself.
   `FeatureLayer`/`MapView` handle rendering — the ~105k features are never
   queried or copied into JavaScript memory.
 - Colors every building by its **current simulated occupancy** (0–100)
-  using a continuous Color Visual Variable, driven by an Arcade expression
-  that linearly interpolates between the two hourly `OCC_HH` fields that
-  bracket the current time (circularly, so 23:30 blends `OCC_23`/`OCC_00`).
+  using a continuous Color Visual Variable. Each building stores exactly
+  one field, `OCC_TYPE` (its use category), and its full 24-hour activity
+  curve is computed live in an Arcade expression from that category plus
+  the current simulated hour — see "Data model" below.
 - Plays a full simulated day in ~6 real seconds by default, looping
   continuously, with a large digital clock, a draggable 24-hour timeline,
   Play/Pause, and a speed slider (0.25×–4×) to slow it down or speed it up
@@ -54,6 +55,10 @@ used for this demo. `VITE_FEATURE_LAYER_URL` accepts either form:
   resolves the portal item to its underlying layer automatically — see
   `resolveFeatureLayerSource` in `src/map.ts`.
 
+**The hosted feature layer must have an `OCC_TYPE` field** (see "Data
+model" below) — if you're migrating an older version of this layer that
+instead had `OCC_00`..`OCC_23`, republish it with `data/LIMA_OCC_TYPE.csv`.
+
 Other scripts:
 
 ```bash
@@ -65,25 +70,97 @@ npm run preview   # preview the production build locally
 
 ```
 index.html               Page shell: overlays, HUD markup, title
+data/
+  LIMA_OCC_TYPE.csv       osm_id -> OCC_TYPE for all ~105k buildings (see scripts/)
+scripts/
+  classify_occ_type.py    Regenerates LIMA_OCC_TYPE.csv from a raw OSM export
 src/
   main.ts                Wires everything together (bootstraps the app)
   config.ts               Configuration constants (feature layer URL, timing)
   arcgisConfig.ts         Points @arcgis/core at locally-served SDK assets
-  occupancy.ts            OCC_00..OCC_23 fields, interpolation + Arcade expression, clock formatting
-  map.ts                  Map/MapView/FeatureLayer creation, renderer, bloom, hit-testing
+  occupancy.ts            Category activity curves, live Arcade expression, clock formatting
+  map.ts                  Map/MapView/FeatureLayer creation, renderer, bloom
   animationClock.ts       requestAnimationFrame clock driving the UI and renderer together
   ui.ts                   DOM wiring for the clock, timeline, play/pause, overlays
   style.css               Dark, presentation-oriented styling
 vite.config.ts            Vite config; copies @arcgis/core's runtime assets locally
 ```
 
+## Data model
+
+The feature layer stores exactly **one** classification field per building,
+`OCC_TYPE` — a use category such as `"residential"`, `"office"`,
+`"hospitality"`, etc. — plus its existing `osm_id`. There's no per-hour data
+at all. This mirrors how Esri's own "Animate color visual variable" sample
+works: it colors buildings from a single `CNSTRCT_YR` field and the
+current slider value, not from decades of precomputed per-year fields.
+
+An earlier version of this demo instead stored 24 fields per building
+(`OCC_00`..`OCC_23`, one ChatGPT-invented value per hour). That worked, but
+loading 24-25 numeric fields for ~105k features is real memory/network
+cost that a single field avoids entirely — see "Why this is lighter than
+the old 24-field model" below.
+
+### How `OCC_TYPE` was derived
+
+`data/LIMA_OCC_TYPE.csv` (`osm_id, OCC_TYPE`) was generated from the raw
+OSM building export (`LIMA_Footprints.csv`, not included here — it has
+`osm_id`, `type`, `name`, `AREA_M2`, etc. but no occupancy data) by
+`scripts/classify_occ_type.py`, in priority order per building:
+
+1. Its OSM `type` tag, if set (~25% of buildings) — mapped to one of the
+   categories below (e.g. `house`/`apartments` → `residential`, `hospital` →
+   `healthcare`, `school`/`university` → `education`).
+2. A keyword match against its `name`, if set (~1% of buildings) — catches
+   named landmarks with no `type` tag (e.g. "JW Marriott Hotel Lima" →
+   `hospitality`, "Museo de Arte de Lima" → `civic_transit`).
+3. A fallback by footprint area (`AREA_M2`) for the ~74% of buildings with
+   neither: small footprints default to `residential`; larger ones split
+   between office/retail/industrial via a deterministic pseudo-random value
+   seeded by `osm_id` (reproducible — not re-randomized on every run).
+
+Resulting distribution across the real ~105k buildings: **84% residential**,
+6% retail_food, 4% office, 2% education, and the remaining ~4% split across
+industrial, other, religious, healthcare and hospitality — a plausible mix
+for a real city, where most buildings are homes.
+
+To regenerate (e.g. after tweaking the category mapping):
+
+```bash
+python3 scripts/classify_occ_type.py LIMA_Footprints.csv data/LIMA_OCC_TYPE.csv
+```
+
+Then join that CSV to the building geometries by `osm_id` and republish the
+hosted feature layer with `osm_id` + `OCC_TYPE` only — no `OCC_00`..`OCC_23`,
+`OCC_SRC`, `PEAK_HR` or `OCC_MAX` fields are needed.
+
+### Category activity curves
+
+`CATEGORY_PROFILES` in `src/occupancy.ts` defines one daily curve per
+category — a peak hour, how wide that peak is, a baseline floor, and a peak
+intensity — tuned against the real category mix above to produce the
+intended citywide story purely from the aggregate of many buildings peaking
+at different hours: residential dominant overnight and at dawn, offices/
+schools ramping up through the morning, business/retail peaking midday, and
+a shift back toward residential/hospitality in the evening. Each building's
+own `osm_id` seeds a small deterministic jitter on top of its category's
+base peak hour/intensity (same linear-congruential formula as the
+classification script, computed independently in Arcade) so buildings in
+the same category don't pulse in exact lockstep.
+
+`getOccupancyExpression()` builds the actual Arcade expression: it reads
+`OCC_TYPE` and `osm_id`, looks up that category's curve via `Decode()`,
+applies the jitter, and computes a Gaussian-like falloff from the *circular*
+distance between the injected current simulated hour and the (jittered)
+peak hour. Re-tune any category's peak/width/floor/max directly in
+`CATEGORY_PROFILES` — no data regeneration needed, since the curve is
+computed live, not stored.
+
 ## How the animation works
 
 The layer's renderer never gets rebuilt during playback — only the color
-visual variable's `valueExpression` string is updated. This is the same
-technique as the ["Animate color visual variable"](https://developers.arcgis.com/javascript/latest/sample-code/visualization-vv-color-animate/)
-sample, adapted to a 24-hour occupancy model instead of a single animated
-value.
+visual variable's `valueExpression` string is updated, the same technique
+as Esri's "Animate color visual variable" sample.
 
 `AnimationClock` (`src/animationClock.ts`) fires two callbacks together on
 every `requestAnimationFrame`, using wall-clock delta time so a simulated
@@ -94,11 +171,10 @@ day always takes ~6 real seconds regardless of frame rate:
 - **`onRendererUpdate`** pushes a new Arcade expression to the map's
   renderer.
 
-Neither is throttled — this matches Esri's own "Animate color visual
-variable" sample, which updates its slider and renderer together on every
-frame with no throttling either. They're kept as two callbacks for
-architectural clarity (UI concerns vs. map concerns), not because they run
-at different rates.
+Neither is throttled — this matches Esri's own sample, which updates its
+slider and renderer together on every frame with no throttling either.
+They're kept as two callbacks for architectural clarity (UI concerns vs.
+map concerns), not because they run at different rates.
 
 Dragging the timeline calls `AnimationClock.seek()`, which updates both
 immediately. The speed slider calls `AnimationClock.setSpeedMultiplier()`,
@@ -106,41 +182,28 @@ which scales the clock's rate without resetting or rebuilding it.
 
 ### Quiet-hours time-warp
 
-Autoplay doesn't move through the 24 simulated hours at a constant rate.
-`AnimationClock` advances a normalized loop position (0-1) at constant
-wall-clock speed and maps it to an hour via `mapLoopPositionToHour()`
-(`src/occupancy.ts`), which compresses hours before `QUIET_HOURS_END`
-(`src/config.ts`) into just `QUIET_HOURS_TIME_SHARE` of the loop's real
-playback time, stretching the livelier rest of the day to fill the
-remainder. With the real Lima data, little visibly changes before ~8am, so
-by default that whole stretch is compressed into the first ~15% of each
-loop instead of taking its "fair" linear third — the loop stays the same
-length, but far more of it is spent where buildings are actually lighting
-up. `mapHourToLoopPosition()` is the inverse, used by `seek()` so dragging
-the timeline still jumps to the exact hour requested and autoplay resumes
-from the right point in the warped loop. **Re-tune `QUIET_HOURS_END` and
-`QUIET_HOURS_TIME_SHARE`** after watching the real data — if the livelier
-stretch starts at a different hour, or needs more/less of the loop, those
-two constants are the only thing to change.
+Autoplay doesn't have to move through the 24 simulated hours at a constant
+rate. `AnimationClock` advances a normalized loop position (0-1) at
+constant wall-clock speed and maps it to an hour via
+`mapLoopPositionToHour()` (`src/occupancy.ts`), which can compress hours
+before `QUIET_HOURS_END` (`src/config.ts`) into just
+`QUIET_HOURS_TIME_SHARE` of the loop's real playback time, stretching the
+livelier rest of the day to fill the remainder — same total loop length,
+but more of it spent wherever's actually interesting. `mapHourToLoopPosition()`
+is the inverse, used by `seek()` so dragging the timeline always jumps to
+the exact hour requested and autoplay resumes from the right point in the
+warped loop afterward.
 
-`getOccupancyExpression()` in `src/occupancy.ts` builds the actual Arcade
-expression, e.g. for hour 18.5:
+**This is currently a no-op** (`QUIET_HOURS_TIME_SHARE` is set to exactly
+`QUIET_HOURS_END / 24`, its own "fair" linear share, which makes the
+mapping plain linear). It was tuned once against the old 24-field data,
+which had one obvious ~8-hour dead stretch — but the category-curve model
+above has a different rhythm (liveliest overnight, with quieter transitions
+around dawn and dusk instead of one big gap), so that specific tuning no
+longer applies. Watch the new model play out and re-tune both constants if
+a stretch still feels dead.
 
-```
-$feature.OCC_18 * (1 - 0.5) + $feature.OCC_19 * 0.5
-```
-
-### Why buildings brighten *and* dim within a single day
-
-Unlike a sample that plays through strictly increasing values (e.g. a
-building's construction year), each building's occupancy naturally rises
-and falls over 24 hours — often with more than one peak (e.g. a residential
-building busy both in the early morning and at night). So a building's
-color legitimately climbs to cyan and back down to violet more than once
-per loop; that's the data's real daily rhythm, not an inconsistency in the
-color ramp.
-
-### Why buildings don't stay lit for long
+## Visual design
 
 `OCCUPANCY_COLOR_STOPS` in `src/map.ts` is deliberately back-loaded: idle
 buildings (0) are a faint, translucent white — present as city fabric
@@ -150,6 +213,12 @@ bloom threshold (`bloom(2.8, 0px, 65%)`, only pixels in roughly the top
 third of brightness actually bloom), a building only "flashes" while
 genuinely near its peak, then fades quickly — rather than staying visibly
 lit for a large share of the loop.
+
+Because each category has a single peak (not an arbitrary multi-peak
+curve), a building's color rises and falls smoothly exactly once per loop —
+climbing to its brightest near its category's peak hour and fading on
+either side of it, circularly (so a residential building peaking at 1am
+is already brightening again late in the evening).
 
 ## Notes on `arcgisConfig.ts` / local SDK assets
 
@@ -186,43 +255,55 @@ error message instead of a blank map — see `FeatureLayerConfigError` in
 `src/map.ts` and the `#errorOverlay` markup in `index.html`. A loading
 overlay is shown until the layer and view are ready.
 
-## A note on performance vs. Esri's sample
+## Performance notes
 
-Esri's "Animate color visual variable" sample uses a plain `field` reference
-for its color/opacity visual variables — animating by changing numeric stop
-*values* only, never the field itself. That's cheaper than this app's
-approach, which re-evaluates an Arcade `valueExpression` on every renderer
-update, because a per-feature Arcade evaluation runs on the CPU while a
-field lookup is close to free for the GPU-based rendering pipeline.
-This app needs Arcade because it blends *two different fields*
-(`OCC_18`/`OCC_19`) by a live fraction — something a field-based visual
-variable can't express — so that cost is inherent to smooth half-hour
-interpolation, not a bug.
+**Why this is lighter than the old 24-field model.** The layer's
+`outFields` is now just `[osm_id, OCC_TYPE]` — two fields per building
+instead of twenty-five — which is the single biggest lever available here:
+less data to fetch, decode and hold in memory for ~105k features,
+independent of anything about the renderer itself. If `OCC_TYPE` ends up
+stored as a wide text field on the hosted layer, that's still worth
+checking with whoever manages it; a short/coded field is cheaper to
+transfer than an arbitrary-length string, though with only one field left
+this matters far less than the old 24-field payload did.
 
-The other factor: that sample's map opens at a fixed `zoom="12"` on one
-neighborhood and caps `minScale` so you can never zoom out far enough to
-render its full 1M+ building dataset at once — you still have complete
-freedom to pan and zoom, just not *out past* that point. This app now does
-the same: `view.constraints.minScale` is capped at `LIMA_FALLBACK_SCALE`
-(`src/config.ts`), so the initial fit to the real buildings extent
-(`layer.fullExtent`) is automatically clamped to that scale if the real
-data spans a wider area, and the user can't zoom out past it either.
+**Why Arcade is still used, not a plain `field` reference.** Esri's sample
+animates by changing color-stop *values* against a static `field`
+(`CNSTRCT_YR`), which is cheaper than evaluating an expression because a
+field lookup is close to free for the GPU-based rendering pipeline, while
+Arcade evaluation runs per-feature on the CPU. This app can't quite do the
+same thing: `CNSTRCT_YR` is linear (years only increase) and its distance
+to the slider value is a simple subtraction, but each `OCC_TYPE` category's
+distance to the current hour is *circular* (23:00 is close to 00:00), which
+a plain field+stops model can't express — so computing that distance still
+needs an expression. The expression itself is now cheap regardless
+(`Decode` + a bit of arithmetic over exactly 2 field reads), which is a
+large improvement over the old model's 2-of-24 field reads plus the cost of
+rebuilding a brand-new expression string every update.
+
+**The other factor: zoomed-out feature count.** Esri's sample opens at a
+fixed `zoom="12"` on one NYC neighborhood and caps `minScale` so you can
+never zoom out far enough to render its full 1M+ building dataset at once
+— you still have complete freedom to pan and zoom, just not *out past* that
+point. This app does the same: `view.constraints.minScale` is capped at
+`LIMA_FALLBACK_SCALE` (`src/config.ts`), so the initial fit to the real
+buildings extent (`layer.fullExtent`) is automatically clamped to it if the
+real data spans a wider area, and the user can't zoom out past it either.
 Panning and zooming in remain completely unrestricted.
 
 Renderer updates aren't throttled (see "How the animation works" above) —
-if animation feels sluggish on real hardware with the real ~105k-feature
-layer, reintroducing a throttle on `onRendererUpdate` in
-`src/animationClock.ts` (e.g. capping it to every 60-100ms) is the first
+if animation still feels sluggish on real hardware with the real
+~105k-feature layer, reintroducing a throttle on `onRendererUpdate` in
+`src/animationClock.ts` (e.g. capping it to every 60-100ms) is the next
 thing to try.
 
 ## Scope
 
 This implementation covers the first-milestone feature set: load the layer,
-render all buildings by `OCC_00` initially, digital clock, hour
-interpolation, a full animated 24-hour loop, Play/Pause, a speed slider,
-and the final dark/bloom visual treatment. An earlier version also
-included a hover tooltip (`OCC_TYPE` + current occupancy %), but it was
-removed — the hit-test attributes it read weren't reliably matching the
-live layer's data (frequently showing 0%/unknown), it added a per-frame
-async hit-test on `pointer-move`, and it wasn't adding value the demo
-needed.
+render all buildings from their `OCC_TYPE` category, digital clock, a full
+animated 24-hour loop, Play/Pause, a speed slider, and the final dark/bloom
+visual treatment. An earlier version also included a hover tooltip
+(`OCC_TYPE` + current occupancy %), but it was removed — the hit-test
+attributes it read weren't reliably matching the live layer's data
+(frequently showing 0%/unknown), it added a per-frame async hit-test on
+`pointer-move`, and it wasn't adding value the demo needed.

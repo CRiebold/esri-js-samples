@@ -6,8 +6,8 @@ import SimpleRenderer from "@arcgis/core/renderers/SimpleRenderer.js";
 import SimpleFillSymbol from "@arcgis/core/symbols/SimpleFillSymbol.js";
 import ColorVariable from "@arcgis/core/renderers/visualVariables/ColorVariable.js";
 
-import { FEATURE_LAYER_URL, LIMA_CENTER, LIMA_FALLBACK_SCALE, UNIQUE_ID_FIELD } from "./config";
-import { OCC_FIELDS, getOccupancyExpression } from "./occupancy";
+import { FEATURE_LAYER_URL, LIMA_CENTER, LIMA_FALLBACK_SCALE, OCC_TYPE_FIELD, UNIQUE_ID_FIELD } from "./config";
+import { getOccupancyExpression } from "./occupancy";
 
 /**
  * The color ramp that gives Lima its "living city" feel. Idle buildings
@@ -104,7 +104,7 @@ export async function createLimaView(container: HTMLDivElement): Promise<LimaVie
 
   const layer = new FeatureLayer({
     ...resolveFeatureLayerSource(FEATURE_LAYER_URL),
-    outFields: [UNIQUE_ID_FIELD, ...OCC_FIELDS],
+    outFields: [UNIQUE_ID_FIELD, OCC_TYPE_FIELD],
     popupEnabled: false,
     renderer,
     // A strong bloom with a high threshold: only pixels that are already

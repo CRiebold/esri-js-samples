@@ -12,6 +12,14 @@ export const FEATURE_LAYER_URL: string = import.meta.env.VITE_FEATURE_LAYER_URL 
 export const UNIQUE_ID_FIELD = "osm_id";
 
 /**
+ * The building's use category (e.g. "residential", "office", "hospitality"
+ * — see CATEGORY_PROFILES in src/occupancy.ts). This is the only
+ * classification field the renderer reads; the whole 24-hour occupancy
+ * curve is computed live from it plus the building's own id.
+ */
+export const OCC_TYPE_FIELD = "OCC_TYPE";
+
+/**
  * How long a full simulated 24-hour day takes to play, in seconds.
  * Esri's own "Animate color visual variable" sample steps its value by 0.5
  * per animation frame over a 137-unit range — at ~60fps that's a full cycle
@@ -21,23 +29,24 @@ export const UNIQUE_ID_FIELD = "osm_id";
 export const DAY_DURATION_SECONDS = 6;
 
 /**
- * Time-warping for the playback loop. Real occupancy data isn't uniformly
- * "interesting" across 24 hours — the pre-dawn stretch in Lima's dataset
- * stays quiet until around 8am, then a lot happens the rest of the day. A
- * constant-speed clock spends a third of every loop on that quiet stretch
- * with visibly nothing changing. Instead, hours before QUIET_HOURS_END are
+ * Time-warping for the playback loop: hours before QUIET_HOURS_END can be
  * compressed into just QUIET_HOURS_TIME_SHARE of the loop's real playback
- * time, and the livelier remaining hours are stretched to fill the rest —
- * same total loop length, but far more of it spent where buildings are
- * actually lighting up. This only affects autoplay pacing: dragging the
- * timeline still jumps straight to the exact hour requested (see
- * mapLoopPositionToHour/mapHourToLoopPosition in src/occupancy.ts).
+ * time, stretching the rest of the day to fill the remainder — same total
+ * loop length, but more of it spent wherever's actually interesting. This
+ * only affects autoplay pacing; dragging the timeline always jumps
+ * straight to the exact hour requested (see mapLoopPositionToHour /
+ * mapHourToLoopPosition in src/occupancy.ts).
  *
- * Re-tune these after watching the real data — if the lively stretch
- * actually starts earlier/later than 8am, move QUIET_HOURS_END to match.
+ * Currently a no-op (QUIET_HOURS_TIME_SHARE == QUIET_HOURS_END / 24, its
+ * "fair" linear share, makes the mapping exactly linear). The single-field
+ * category model in src/occupancy.ts has a different rhythm than the old
+ * per-hour data this was tuned against — the liveliest stretch is now
+ * overnight (residential peaking ~1am), with quieter transitions around
+ * 5-9am and 17-21h — so a single compressed "boring" stretch may no longer
+ * fit. Re-tune both constants after watching the new model play out.
  */
 export const QUIET_HOURS_END = 8;
-export const QUIET_HOURS_TIME_SHARE = 0.15;
+export const QUIET_HOURS_TIME_SHARE = QUIET_HOURS_END / 24;
 
 /**
  * Lima, Peru — the fallback center/scale if the layer's extent can't be
