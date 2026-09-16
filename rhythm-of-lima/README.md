@@ -304,14 +304,16 @@ aria-labels) is in Spanish for the app's intended Lima audience.
 
 ## Esri / ArcGIS credit
 
-The title panel includes a text credit line ("Creado con ArcGIS Maps SDK
-for JavaScript · Esri"). This is plain text, not Esri's official logo — no
-Esri brand asset was available to embed in the environment this was built
-in. To use the actual Esri wordmark/logo, drop the image file into
-`src/` (or a new `public/` folder) and swap the `#poweredBy` text in
-`index.html` for an `<img>` referencing it. The small "Powered by Esri"
-attribution shown by the `MapView` itself (bottom-right of the map) is
-separate and always present, as required by Esri's basemap terms of use.
+The title panel's credit row (`#poweredBy` in `index.html`) pairs a text
+credit ("Creado con ArcGIS Maps SDK for JavaScript") with Esri's actual
+globe+wordmark logo, at `public/esri-logo-white.png` — a white version
+(background made transparent, black artwork recolored to white) of Esri's
+standard logo, generated to read against this app's dark theme. If Esri's
+brand guidelines ever need a different logo variant (color, minimum size,
+clear space), swap that file and adjust `#esriLogo` in `src/style.css`.
+The small "Powered by Esri" attribution shown by the `MapView` itself
+(bottom-right of the map) is separate and always present, as required by
+Esri's basemap terms of use.
 
 ## Error handling & loading state
 
