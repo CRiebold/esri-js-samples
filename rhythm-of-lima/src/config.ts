@@ -26,11 +26,13 @@ export const DAY_DURATION_SECONDS = 6;
 /**
  * Minimum time between renderer updates, in milliseconds. The animation
  * clock itself runs every frame (for a smooth clock/timeline), but pushing
- * a new Arcade expression to the layer's renderer on every frame is wasted
- * work — the map only needs to look continuous, not literally repaint at
- * 60 fps. ~12 updates/second is imperceptible from a smooth animation.
+ * a new Arcade expression to the layer's renderer requires it to be
+ * re-evaluated across every rendered building — at ~105k features citywide,
+ * that's real CPU cost, so it's throttled well below frame rate. ~6-7
+ * updates/second is still visually smooth for a color transition (unlike
+ * motion, which needs much higher fps to read as continuous).
  */
-export const RENDERER_UPDATE_INTERVAL_MS = 80;
+export const RENDERER_UPDATE_INTERVAL_MS = 150;
 
 /** Lima, Peru — used as a fallback center if the layer's extent can't be read. */
 export const LIMA_CENTER: [number, number] = [-77.0428, -12.0464];

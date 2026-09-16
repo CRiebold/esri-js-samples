@@ -93,10 +93,10 @@ at different rates:
   regardless of frame rate. It's cheap (just updates the clock label and
   timeline position), so it runs unthrottled for a perfectly smooth UI.
 - **The renderer update** (`onRendererUpdate`) is throttled to roughly
-  every 80ms. Pushing a new Arcade expression to a layer with ~105k
-  features is comparatively expensive, and updating it 60 times a second
-  would be wasted work — ~12 updates/second already reads as fully
-  continuous.
+  every 150ms (~6-7/s). Pushing a new Arcade expression re-evaluates it
+  across every rendered building — at ~105k features citywide that's real
+  CPU cost, so it's throttled well below frame rate. Unlike motion, a color
+  transition still reads as smooth at this rate.
 
 Dragging the timeline calls `AnimationClock.seek()`, which bypasses the
 throttle and repaints immediately. The speed slider calls
@@ -168,6 +168,33 @@ load (network issue, invalid item, etc.), the app shows a clear full-screen
 error message instead of a blank map — see `FeatureLayerConfigError` in
 `src/map.ts` and the `#errorOverlay` markup in `index.html`. A loading
 overlay is shown until the layer and view are ready.
+
+## A note on performance vs. Esri's sample
+
+Esri's "Animate color visual variable" sample uses a plain `field` reference
+for its color/opacity visual variables — animating by changing numeric stop
+*values* only, never the field itself. That's cheaper than this app's
+approach, which re-evaluates an Arcade `valueExpression` on every renderer
+update, because a per-feature Arcade evaluation runs on the CPU while a
+field lookup is close to free for the GPU-based rendering pipeline.
+This app needs Arcade because it blends *two different fields*
+(`OCC_18`/`OCC_19`) by a live fraction — something a field-based visual
+variable can't express — so that cost is inherent to smooth half-hour
+interpolation, not a bug.
+
+The other likely factor: that sample's map opens at a fixed `zoom="12"` on
+one neighborhood and caps `minScale` so you can never zoom out far enough
+to render its full 1M+ building dataset at once. This app instead fits the
+view to the *entire* Lima buildings extent on load (per the brief's
+"city-wide view" requirement), so most or all of the ~105k buildings can be
+on-screen — and being re-colored — simultaneously. Constraining the default
+view similarly (e.g. a `minScale` on `MapView.constraints`) would trade
+away that full-city view for smoother playback, and is a call worth making
+deliberately rather than baking in silently.
+
+If animation feels sluggish on real hardware, `RENDERER_UPDATE_INTERVAL_MS`
+in `src/config.ts` is the first knob to turn (higher = fewer, cheaper
+updates).
 
 ## Scope
 
