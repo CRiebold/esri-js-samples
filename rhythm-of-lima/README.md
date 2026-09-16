@@ -1,12 +1,14 @@
-# The Rhythm of Lima
+# El Ritmo de Lima (The Rhythm of Lima)
 
 A demonstration built with the ArcGIS Maps SDK for JavaScript that visualizes
 how simulated building occupancy changes across a 24-hour day, over roughly
-105,000 real OpenStreetMap building footprints in Lima, Peru.
+105,000 real OpenStreetMap building footprints in Lima, Peru. The app's UI
+is in Spanish for its intended audience; this README is in English for
+developers.
 
 The building geometries are real (OpenStreetMap). The hourly occupancy
-values are **synthetic**, generated for this demo — see the "Synthetic
-occupancy data" label in the app itself.
+values are **synthetic**, generated for this demo — see the "Datos de
+ocupación sintéticos" label in the app itself.
 
 ## What it does
 
@@ -17,9 +19,13 @@ occupancy data" label in the app itself.
   using a continuous Color Visual Variable, driven by an Arcade expression
   that linearly interpolates between the two hourly `OCC_HH` fields that
   bracket the current time (circularly, so 23:30 blends `OCC_23`/`OCC_00`).
-- Plays a full simulated day in ~10 real seconds, looping continuously, with
-  a large digital clock, a draggable 24-hour timeline, and Play/Pause.
-- Uses a dark, minimal basemap with a subtle bloom effect so the busiest
+- Plays a full simulated day in ~6 real seconds, looping continuously, with
+  a large digital clock, a draggable 24-hour timeline, and Play/Pause. The
+  pace and the violet → magenta → cyan color ramp + strong bloom are
+  deliberately tuned to match the energy of Esri's own
+  ["Animate color visual variable"](https://developers.arcgis.com/javascript/latest/sample-code/visualization-vv-color-animate/)
+  sample rather than a slow, subtle fade.
+- Uses a dark, minimal basemap with a strong bloom effect so the busiest
   (brightest) buildings visibly glow.
 
 ## Tech stack
@@ -81,7 +87,7 @@ value.
 at different rates:
 
 - **The clock tick** (`onTick`) fires every `requestAnimationFrame`, using
-  wall-clock delta time so a simulated day always takes ~10 real seconds
+  wall-clock delta time so a simulated day always takes ~6 real seconds
   regardless of frame rate. It's cheap (just updates the clock label and
   timeline position), so it runs unthrottled for a perfectly smooth UI.
 - **The renderer update** (`onRendererUpdate`) is throttled to roughly
@@ -110,6 +116,15 @@ into the app's own output and `src/arcgisConfig.ts` points `esriConfig.assetsPat
 at that local copy. This is the standard, documented setup for bundler-based
 `@arcgis/core` apps and keeps the app self-consistent with whatever SDK
 version is installed.
+
+## Language
+
+All user-facing UI text (title, subtitle, loading/error messages, tooltip,
+aria-labels) is in Spanish for the app's intended Lima audience. The one
+exception is `OCC_TYPE` itself, shown verbatim in the hover tooltip — its
+values come directly from the feature layer's data, so their language
+depends on how that field was populated in the source service, not on this
+app's code.
 
 ## Error handling & loading state
 

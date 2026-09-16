@@ -48,11 +48,11 @@ export class Ui {
   setPlaying(isPlaying: boolean): void {
     setHidden(this.iconPlay, isPlaying);
     setHidden(this.iconPause, !isPlaying);
-    this.playPauseBtn.setAttribute("aria-label", isPlaying ? "Pause" : "Play");
+    this.playPauseBtn.setAttribute("aria-label", isPlaying ? "Pausar" : "Reproducir");
   }
 
   showTooltip(screenX: number, screenY: number, occType: string, occupancyPercent: number): void {
-    this.tooltipEl.innerHTML = `<strong>${Math.round(occupancyPercent)}%</strong> occupied &middot; ${occType}`;
+    this.tooltipEl.innerHTML = `<strong>${Math.round(occupancyPercent)}%</strong> ocupado &middot; ${occType}`;
     this.tooltipEl.style.left = `${screenX}px`;
     this.tooltipEl.style.top = `${screenY - 12}px`;
     this.tooltipEl.classList.remove("tooltip--hidden");

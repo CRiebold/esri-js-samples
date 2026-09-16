@@ -16,11 +16,12 @@ export const OCC_TYPE_FIELD = "OCC_TYPE";
 
 /**
  * How long a full simulated 24-hour day takes to play, in seconds.
- * Kept short so the day/night pulse reads clearly in a live demo — long
- * enough to see the city's rhythm, short enough to stay hypnotic rather
- * than slow.
+ * Esri's own "Animate color visual variable" sample steps its value by 0.5
+ * per animation frame over a 137-unit range — at ~60fps that's a full cycle
+ * in ~4.5s. This matches that pace so the day/night pulse feels equally
+ * energetic instead of slow and static.
  */
-export const DAY_DURATION_SECONDS = 10;
+export const DAY_DURATION_SECONDS = 6;
 
 /**
  * Minimum time between renderer updates, in milliseconds. The animation

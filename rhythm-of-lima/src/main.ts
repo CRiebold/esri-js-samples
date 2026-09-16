@@ -18,7 +18,7 @@ async function main(): Promise<void> {
     const message =
       error instanceof FeatureLayerConfigError
         ? error.message
-        : `An unexpected error occurred while loading the map: ${
+        : `Ocurrió un error inesperado al cargar el mapa: ${
             error instanceof Error ? error.message : String(error)
           }`;
     ui.showError(message);
@@ -64,7 +64,7 @@ async function main(): Promise<void> {
     try {
       const attributes = await hitTestBuilding({ x: event.x, y: event.y });
       if (attributes) {
-        const occType = String(attributes[OCC_TYPE_FIELD] ?? "Unknown");
+        const occType = String(attributes[OCC_TYPE_FIELD] ?? "Desconocido");
         const occupancy = interpolateOccupancy(clock.simulatedHour, attributes);
         ui.showTooltip(event.x, event.y, occType, occupancy);
       } else {

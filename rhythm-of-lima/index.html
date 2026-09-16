@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>The Rhythm of Lima</title>
+    <title>El Ritmo de Lima</title>
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
@@ -12,20 +12,20 @@
     <div id="loadingOverlay" class="overlay">
       <div class="overlay-content">
         <div class="spinner"></div>
-        <p>Loading Lima's buildings&hellip;</p>
+        <p>Cargando los edificios de Lima&hellip;</p>
       </div>
     </div>
 
     <div id="errorOverlay" class="overlay overlay--hidden">
       <div class="overlay-content">
-        <p class="error-title">Unable to load the feature layer</p>
+        <p class="error-title">No se pudo cargar la capa de datos</p>
         <p id="errorMessage" class="error-message"></p>
       </div>
     </div>
 
     <header id="titleBlock">
-      <h1>The Rhythm of Lima</h1>
-      <p>Simulated urban occupancy throughout the day</p>
+      <h1>El Ritmo de Lima</h1>
+      <p>Ocupación urbana simulada a lo largo del día</p>
     </header>
 
     <div id="tooltip" class="tooltip tooltip--hidden"></div>
@@ -34,15 +34,15 @@
       <div id="clock">00:00</div>
 
       <div id="timelineRow">
-        <button id="playPauseBtn" type="button" aria-label="Pause">
+        <button id="playPauseBtn" type="button" aria-label="Pausar">
           <svg id="iconPause" viewBox="0 0 24 24" width="20" height="20"><path d="M6 4h4v16H6zM14 4h4v16h-4z" fill="currentColor"/></svg>
           <svg id="iconPlay" viewBox="0 0 24 24" width="20" height="20" hidden><path d="M7 4l14 8-14 8z" fill="currentColor"/></svg>
         </button>
 
-        <input id="timeline" type="range" min="0" max="1440" step="1" value="0" aria-label="Time of day" />
+        <input id="timeline" type="range" min="0" max="1440" step="1" value="0" aria-label="Hora del día" />
       </div>
 
-      <p id="disclaimer">Synthetic occupancy data for demonstration purposes</p>
+      <p id="disclaimer">Datos de ocupación sintéticos, solo con fines demostrativos</p>
     </footer>
 
     <script type="module" src="/src/main.ts"></script>

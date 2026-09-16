@@ -17,17 +17,18 @@ import { OCC_FIELDS, getOccupancyExpression } from "./occupancy";
 
 /**
  * The color ramp that gives Lima its "living city" feel: buildings sit
- * almost invisible against the dark basemap when idle, then progressively
- * brighten through blue and into a glowing cyan as simulated occupancy
- * climbs toward 100. Paired with the layer's bloom effect, the brightest
- * (busiest) buildings visibly glow.
+ * nearly invisible against the dark basemap when idle, then climb through
+ * deep violet and hot magenta into a glowing cyan at peak occupancy —
+ * a punchier, more electric progression (closer to Esri's own
+ * "Animate color visual variable" sample) than a plain dark-to-light blue
+ * ramp, which read as flat/washed-out on a live screen.
  */
 const OCCUPANCY_COLOR_STOPS = [
-  { value: 0, color: "#0b0f16" },
-  { value: 25, color: "#123a5c" },
-  { value: 50, color: "#1f6fa8" },
-  { value: 75, color: "#22c9e6" },
-  { value: 100, color: "#c9fbff" }
+  { value: 0, color: "#0a0512" },
+  { value: 25, color: "#4a0d6b" },
+  { value: 50, color: "#c81fb0" },
+  { value: 75, color: "#ff4ed6" },
+  { value: 100, color: "#22ffe6" }
 ];
 
 export class FeatureLayerConfigError extends Error {}
@@ -63,9 +64,9 @@ function resolveFeatureLayerSource(
   }
 
   throw new FeatureLayerConfigError(
-    `VITE_FEATURE_LAYER_URL isn't a recognizable feature layer source: "${rawUrl}". ` +
-      `Expected either a FeatureServer layer URL (e.g. ".../FeatureServer/0") or a portal ` +
-      `item page URL (e.g. ".../home/item.html?id=<32-character item id>").`
+    `VITE_FEATURE_LAYER_URL no tiene un formato reconocible: "${rawUrl}". ` +
+      `Debe ser una URL de capa de FeatureServer (p. ej. ".../FeatureServer/0") o la URL ` +
+      `de la página de un elemento del portal (p. ej. ".../home/item.html?id=<id de 32 caracteres>").`
   );
 }
 
@@ -89,8 +90,8 @@ export interface LimaView {
 export async function createLimaView(container: HTMLDivElement): Promise<LimaView> {
   if (!FEATURE_LAYER_URL) {
     throw new FeatureLayerConfigError(
-      "No feature layer URL is configured. Set VITE_FEATURE_LAYER_URL in your .env file " +
-        "to the Lima buildings FeatureServer layer URL (see .env.example)."
+      "No se configuró ninguna URL de capa de datos. Define VITE_FEATURE_LAYER_URL en tu " +
+        "archivo .env con la URL de la capa de edificios de Lima (ver .env.example)."
     );
   }
 
@@ -112,19 +113,20 @@ export async function createLimaView(container: HTMLDivElement): Promise<LimaVie
     outFields: [UNIQUE_ID_FIELD, OCC_TYPE_FIELD, ...OCC_FIELDS],
     popupEnabled: false,
     renderer,
-    // Buildings glow proportionally to how bright (i.e. how occupied) they
-    // are — a subtle bloom rather than a heavy one, so quiet buildings stay
-    // legible and the map doesn't wash out.
-    effect: "bloom(1.2, 0.6px, 25%)"
+    // A strong, tight bloom (matching the intensity of Esri's own
+    // "Animate color visual variable" sample) so the brightest, busiest
+    // buildings genuinely glow rather than just looking like a slightly
+    // lighter fill color.
+    effect: "bloom(2.5, 0px, 50%)"
   });
 
   try {
     await layer.load();
   } catch (error) {
     throw new FeatureLayerConfigError(
-      `Failed to load the feature layer from the configured source. Double-check that ` +
-        `VITE_FEATURE_LAYER_URL points to a valid, publicly accessible feature layer. ` +
-        `Underlying error: ${error instanceof Error ? error.message : String(error)}`
+      `No se pudo cargar la capa de datos desde la fuente configurada. Verifica que ` +
+        `VITE_FEATURE_LAYER_URL apunte a una capa de datos válida y accesible públicamente. ` +
+        `Error original: ${error instanceof Error ? error.message : String(error)}`
     );
   }
 
