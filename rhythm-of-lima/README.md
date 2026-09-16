@@ -135,17 +135,25 @@ numbers per building — **not** computed later at render time:
 - `OCC_MAX` — this building's peak occupancy intensity (0-100).
 
 Both start from the building's category's typical value (`CATEGORY_BASE` in
-the script) and add a small deterministic jitter seeded by the building's
-own `osm_id`, so buildings in the same category don't all peak at the exact
+the script) and add a deterministic jitter seeded by the building's own
+`osm_id`, so buildings in the same category don't all peak at the exact
 same minute — e.g. `31146352,healthcare,12.93,87.9` is one specific
 hospital peaking at 12:56, not "healthcare in general."
 
-Every category's base `OCC_MAX` is deliberately kept at 84+, with jitter
-capped so it can't push any building below 76 — comfortably past the color
-ramp's "70" (purple) stop. The point of the animation is that *every*
-building visibly lights up once a day, not just the busiest categories;
-they only differ in *when* they peak and how high/long they idle
-(`floor`/`width`, below), never in *whether* they shine.
+`PEAK_HR_JITTER` (currently +/-5h) has to be wide, not just "a little
+per-building noise": residential alone is ~84% of the city, so a narrow
+jitter (an earlier version used +/-1.5h) squeezed the vast majority of the
+*entire map* into peaking within the same ~3-hour band — reading as one
+synchronized citywide flash instead of a living, staggered city. At +/-5h,
+individual residential buildings' peaks scatter across a real window
+(roughly 20h through 5h) instead of a narrow slice of it.
+
+Every category's base `OCC_MAX` is deliberately kept at 94+, with jitter
+(`OCC_MAX_JITTER`, +/-6) capped so it can't push any building below 88 —
+right at the color ramp's hot-pink/cyan "shine" stop. The point of the
+animation is that *every* building visibly shines once a day, not just
+dims up; they only differ in *when* they peak and how high/long they idle
+(`floor`/`width`, below), never in *whether*, or how brightly, they shine.
 
 Resulting distribution across the real ~105k buildings: **84% residential**,
 6% retail_food, 4% office, 2% education, and the remaining ~4% split across

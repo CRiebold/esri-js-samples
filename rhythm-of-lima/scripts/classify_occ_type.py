@@ -109,6 +109,18 @@ CATEGORY_BASE = {
 # lands at 88 — right at the "shine" stop for every single building.
 OCC_MAX_JITTER = 6
 
+# How far peak_hr can jitter from its category base, per building. This
+# used to be a tight +/-1.5h — harmless for a small category, but
+# residential alone is ~84% of the city, so squeezing it into a ~3h band
+# around its base (1am) meant the vast majority of the ENTIRE city peaked
+# within the same few hours: the whole map read as one synchronized flash
+# around 23h-2h instead of a scattered, living city. Widening this to
+# +/-5h spreads individual buildings' peaks across a real window (roughly
+# 20h through 6h for residential) instead of a narrow slice of it, while
+# each category's own curve shape (CATEGORY_SHAPES in src/occupancy.ts)
+# still keeps its own peak/idle contrast per building.
+PEAK_HR_JITTER = 5.0
+
 
 def det_rand(seed: int) -> float:
     """Deterministic pseudo-random value in [0, 1) from an integer seed
@@ -137,7 +149,7 @@ def peak_hour_and_max(osm_id: int, occ_type: str) -> tuple[float, float]:
     base_peak, base_max = CATEGORY_BASE[occ_type]
     r1 = det_rand(osm_id)
     r2 = det_rand(osm_id * 7 + 13)
-    peak_hr = (base_peak + (r1 * 2 - 1) * 1.5) % 24
+    peak_hr = (base_peak + (r1 * 2 - 1) * PEAK_HR_JITTER) % 24
     occ_max = max(0.0, min(100.0, base_max + (r2 * 2 - 1) * OCC_MAX_JITTER))
     return round(peak_hr, 2), round(occ_max, 1)
 
