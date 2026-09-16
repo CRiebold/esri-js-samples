@@ -11,9 +11,6 @@ export const FEATURE_LAYER_URL: string = import.meta.env.VITE_FEATURE_LAYER_URL 
 /** Unique identifier field for each building footprint. */
 export const UNIQUE_ID_FIELD = "osm_id";
 
-/** Classification fields available on the layer, used for popups. */
-export const OCC_TYPE_FIELD = "OCC_TYPE";
-
 /**
  * How long a full simulated 24-hour day takes to play, in seconds.
  * Esri's own "Animate color visual variable" sample steps its value by 0.5
@@ -22,17 +19,6 @@ export const OCC_TYPE_FIELD = "OCC_TYPE";
  * energetic instead of slow and static.
  */
 export const DAY_DURATION_SECONDS = 6;
-
-/**
- * Minimum time between renderer updates, in milliseconds. The animation
- * clock itself runs every frame (for a smooth clock/timeline), but pushing
- * a new Arcade expression to the layer's renderer requires it to be
- * re-evaluated across every rendered building — at ~105k features citywide,
- * that's real CPU cost, so it's throttled well below frame rate. ~6-7
- * updates/second is still visually smooth for a color transition (unlike
- * motion, which needs much higher fps to read as continuous).
- */
-export const RENDERER_UPDATE_INTERVAL_MS = 150;
 
 /**
  * Lima, Peru — the fallback center/scale if the layer's extent can't be

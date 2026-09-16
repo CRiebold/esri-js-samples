@@ -4,8 +4,8 @@ const MINUTES_PER_DAY = 24 * 60;
 
 /**
  * Thin wrapper around the static HUD elements declared in index.html
- * (clock, timeline, play/pause, tooltip, loading/error overlays). Keeping
- * DOM wiring in one place lets main.ts stay focused on orchestration.
+ * (clock, timeline, play/pause, loading/error overlays). Keeping DOM
+ * wiring in one place lets main.ts stay focused on orchestration.
  */
 export class Ui {
   private readonly clockEl = requireEl<HTMLDivElement>("clock");
@@ -15,7 +15,6 @@ export class Ui {
   private readonly playPauseBtn = requireEl<HTMLButtonElement>("playPauseBtn");
   private readonly iconPlay = requireEl<SVGElement>("iconPlay");
   private readonly iconPause = requireEl<SVGElement>("iconPause");
-  private readonly tooltipEl = requireEl<HTMLDivElement>("tooltip");
   private readonly loadingOverlay = requireEl<HTMLDivElement>("loadingOverlay");
   private readonly errorOverlay = requireEl<HTMLDivElement>("errorOverlay");
   private readonly errorMessageEl = requireEl<HTMLParagraphElement>("errorMessage");
@@ -61,17 +60,6 @@ export class Ui {
     setHidden(this.iconPlay, isPlaying);
     setHidden(this.iconPause, !isPlaying);
     this.playPauseBtn.setAttribute("aria-label", isPlaying ? "Pausar" : "Reproducir");
-  }
-
-  showTooltip(screenX: number, screenY: number, occType: string, occupancyPercent: number): void {
-    this.tooltipEl.innerHTML = `<strong>${Math.round(occupancyPercent)}%</strong> ocupado &middot; ${occType}`;
-    this.tooltipEl.style.left = `${screenX}px`;
-    this.tooltipEl.style.top = `${screenY - 12}px`;
-    this.tooltipEl.classList.remove("tooltip--hidden");
-  }
-
-  hideTooltip(): void {
-    this.tooltipEl.classList.add("tooltip--hidden");
   }
 
   hideLoading(): void {

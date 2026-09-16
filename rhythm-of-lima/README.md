@@ -22,7 +22,7 @@ ocupación sintéticos" label in the app itself.
 - Plays a full simulated day in ~6 real seconds by default, looping
   continuously, with a large digital clock, a draggable 24-hour timeline,
   Play/Pause, and a speed slider (0.25×–4×) to slow it down or speed it up
-  live. The base pace, the violet → magenta → cyan color ramp, and the
+  live. The base pace, the pale-white → magenta → cyan color ramp, and the
   strong bloom are deliberately tuned to match the energy of Esri's own
   ["Animate color visual variable"](https://developers.arcgis.com/javascript/latest/sample-code/visualization-vv-color-animate/)
   sample rather than a slow, subtle fade.
@@ -71,8 +71,8 @@ src/
   arcgisConfig.ts         Points @arcgis/core at locally-served SDK assets
   occupancy.ts            OCC_00..OCC_23 fields, interpolation + Arcade expression, clock formatting
   map.ts                  Map/MapView/FeatureLayer creation, renderer, bloom, hit-testing
-  animationClock.ts       requestAnimationFrame clock: smooth UI ticks + throttled renderer updates
-  ui.ts                   DOM wiring for the clock, timeline, play/pause, tooltip, overlays
+  animationClock.ts       requestAnimationFrame clock driving the UI and renderer together
+  ui.ts                   DOM wiring for the clock, timeline, play/pause, overlays
   style.css               Dark, presentation-oriented styling
 vite.config.ts            Vite config; copies @arcgis/core's runtime assets locally
 ```
@@ -85,23 +85,24 @@ technique as the ["Animate color visual variable"](https://developers.arcgis.com
 sample, adapted to a 24-hour occupancy model instead of a single animated
 value.
 
-`AnimationClock` (`src/animationClock.ts`) separates two concerns that run
-at different rates:
+`AnimationClock` (`src/animationClock.ts`) fires two callbacks together on
+every `requestAnimationFrame`, using wall-clock delta time so a simulated
+day always takes ~6 real seconds regardless of frame rate:
 
-- **The clock tick** (`onTick`) fires every `requestAnimationFrame`, using
-  wall-clock delta time so a simulated day always takes ~6 real seconds
-  regardless of frame rate. It's cheap (just updates the clock label and
-  timeline position), so it runs unthrottled for a perfectly smooth UI.
-- **The renderer update** (`onRendererUpdate`) is throttled to roughly
-  every 150ms (~6-7/s). Pushing a new Arcade expression re-evaluates it
-  across every rendered building — at ~105k features citywide that's real
-  CPU cost, so it's throttled well below frame rate. Unlike motion, a color
-  transition still reads as smooth at this rate.
+- **`onTick`** updates the clock label and timeline position (cheap DOM
+  writes).
+- **`onRendererUpdate`** pushes a new Arcade expression to the map's
+  renderer.
 
-Dragging the timeline calls `AnimationClock.seek()`, which bypasses the
-throttle and repaints immediately. The speed slider calls
-`AnimationClock.setSpeedMultiplier()`, which scales the clock's rate without
-resetting or rebuilding it.
+Neither is throttled — this matches Esri's own "Animate color visual
+variable" sample, which updates its slider and renderer together on every
+frame with no throttling either. They're kept as two callbacks for
+architectural clarity (UI concerns vs. map concerns), not because they run
+at different rates.
+
+Dragging the timeline calls `AnimationClock.seek()`, which updates both
+immediately. The speed slider calls `AnimationClock.setSpeedMultiplier()`,
+which scales the clock's rate without resetting or rebuilding it.
 
 `getOccupancyExpression()` in `src/occupancy.ts` builds the actual Arcade
 expression, e.g. for hour 18.5:
@@ -122,13 +123,14 @@ color ramp.
 
 ### Why buildings don't stay lit for long
 
-`OCCUPANCY_COLOR_STOPS` in `src/map.ts` is deliberately back-loaded: 0–70
-maps to a narrow, muted violet-to-magenta range, and only 70–100 ramps
-quickly through hot pink into bright cyan. Combined with a high bloom
-threshold (`bloom(2.8, 0px, 65%)`, only pixels in roughly the top third of
-brightness actually bloom), a building only "flashes" while genuinely near
-its peak, then fades quickly — rather than staying visibly lit for a large
-share of the loop.
+`OCCUPANCY_COLOR_STOPS` in `src/map.ts` is deliberately back-loaded: idle
+buildings (0) are a faint, translucent white — present as city fabric
+without drawing the eye — staying muted through 0–70, and only 70–100
+ramps quickly through hot pink into bright cyan. Combined with a high
+bloom threshold (`bloom(2.8, 0px, 65%)`, only pixels in roughly the top
+third of brightness actually bloom), a building only "flashes" while
+genuinely near its peak, then fades quickly — rather than staying visibly
+lit for a large share of the loop.
 
 ## Notes on `arcgisConfig.ts` / local SDK assets
 
@@ -143,12 +145,8 @@ version is installed.
 
 ## Language
 
-All user-facing UI text (title, subtitle, loading/error messages, tooltip,
-aria-labels) is in Spanish for the app's intended Lima audience. The one
-exception is `OCC_TYPE` itself, shown verbatim in the hover tooltip — its
-values come directly from the feature layer's data, so their language
-depends on how that field was populated in the source service, not on this
-app's code.
+All user-facing UI text (title, subtitle, loading/error messages,
+aria-labels) is in Spanish for the app's intended Lima audience.
 
 ## Esri / ArcGIS credit
 
@@ -192,14 +190,20 @@ the same: `view.constraints.minScale` is capped at `LIMA_FALLBACK_SCALE`
 data spans a wider area, and the user can't zoom out past it either.
 Panning and zooming in remain completely unrestricted.
 
-If animation feels sluggish on real hardware, `RENDERER_UPDATE_INTERVAL_MS`
-in `src/config.ts` is the first knob to turn (higher = fewer, cheaper
-updates).
+Renderer updates aren't throttled (see "How the animation works" above) —
+if animation feels sluggish on real hardware with the real ~105k-feature
+layer, reintroducing a throttle on `onRendererUpdate` in
+`src/animationClock.ts` (e.g. capping it to every 60-100ms) is the first
+thing to try.
 
 ## Scope
 
 This implementation covers the first-milestone feature set: load the layer,
 render all buildings by `OCC_00` initially, digital clock, hour
-interpolation, a full animated 24-hour loop, Play/Pause, the draggable
-timeline, and the final dark/bloom visual treatment — plus a minimal hover
-tooltip (`OCC_TYPE` + current occupancy %).
+interpolation, a full animated 24-hour loop, Play/Pause, a speed slider,
+and the final dark/bloom visual treatment. An earlier version also
+included a hover tooltip (`OCC_TYPE` + current occupancy %), but it was
+removed — the hit-test attributes it read weren't reliably matching the
+live layer's data (frequently showing 0%/unknown), it added a per-frame
+async hit-test on `pointer-move`, and it wasn't adding value the demo
+needed.

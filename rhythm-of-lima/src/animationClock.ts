@@ -1,4 +1,4 @@
-import { DAY_DURATION_SECONDS, RENDERER_UPDATE_INTERVAL_MS } from "./config";
+import { DAY_DURATION_SECONDS } from "./config";
 import { normalizeHour } from "./occupancy";
 
 export type ClockTickHandler = (simulatedHour: number) => void;
@@ -6,18 +6,13 @@ export type ClockTickHandler = (simulatedHour: number) => void;
 /**
  * Drives the 24-hour simulation clock.
  *
- * This is deliberately split into two callbacks that fire at different
- * rates:
- *
- *  - `onTick` fires on every animation frame. It's cheap (updating a clock
- *    label and a slider position) so there's no reason to throttle it — the
- *    UI stays perfectly smooth.
- *
- *  - `onRendererUpdate` fires at most every `RENDERER_UPDATE_INTERVAL_MS`.
- *    This is the callback that pushes a new Arcade expression to the map's
- *    renderer, which is comparatively expensive across ~105k features, so
- *    it's throttled rather than called 60 times a second. At ~12
- *    updates/second the color transition still reads as fully continuous.
+ * `onTick` and `onRendererUpdate` both fire on every animation frame —
+ * matching Esri's own "Animate color visual variable" sample, which
+ * updates its slider and its renderer together on every `requestAnimationFrame`
+ * with no throttling. They're kept as separate callbacks because they do
+ * different jobs (cheap DOM updates for the clock/timeline vs. pushing a
+ * new Arcade expression to the map's renderer), not because they run at
+ * different rates.
  *
  * The clock advances using wall-clock delta time (not frame count), so the
  * simulated day takes the same DAY_DURATION_SECONDS regardless of frame
@@ -29,7 +24,6 @@ export class AnimationClock {
   private playing = true;
   private speedMultiplier = 1;
   private lastFrameTime: number | null = null;
-  private lastRendererUpdateTime = 0;
   private rafHandle = 0;
 
   constructor(
@@ -71,7 +65,7 @@ export class AnimationClock {
   seek(simulatedHour: number): void {
     this.hour = normalizeHour(simulatedHour);
     this.onTick(this.hour);
-    this.pushRendererUpdate(true);
+    this.onRendererUpdate(this.hour);
   }
 
   private frame = (now: number): void => {
@@ -83,17 +77,9 @@ export class AnimationClock {
       const hoursPerSecond = (24 / DAY_DURATION_SECONDS) * this.speedMultiplier;
       this.hour = normalizeHour(this.hour + deltaSeconds * hoursPerSecond);
       this.onTick(this.hour);
-      this.pushRendererUpdate(false);
+      this.onRendererUpdate(this.hour);
     }
 
     this.rafHandle = requestAnimationFrame(this.frame);
   };
-
-  private pushRendererUpdate(force: boolean): void {
-    const now = performance.now();
-    if (force || now - this.lastRendererUpdateTime >= RENDERER_UPDATE_INTERVAL_MS) {
-      this.lastRendererUpdateTime = now;
-      this.onRendererUpdate(this.hour);
-    }
-  }
 }

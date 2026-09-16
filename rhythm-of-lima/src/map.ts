@@ -6,27 +6,22 @@ import SimpleRenderer from "@arcgis/core/renderers/SimpleRenderer.js";
 import SimpleFillSymbol from "@arcgis/core/symbols/SimpleFillSymbol.js";
 import ColorVariable from "@arcgis/core/renderers/visualVariables/ColorVariable.js";
 
-import {
-  FEATURE_LAYER_URL,
-  LIMA_CENTER,
-  LIMA_FALLBACK_SCALE,
-  OCC_TYPE_FIELD,
-  UNIQUE_ID_FIELD
-} from "./config";
+import { FEATURE_LAYER_URL, LIMA_CENTER, LIMA_FALLBACK_SCALE, UNIQUE_ID_FIELD } from "./config";
 import { OCC_FIELDS, getOccupancyExpression } from "./occupancy";
 
 /**
- * The color ramp that gives Lima its "living city" feel. Stops are
- * deliberately back-loaded — low and medium occupancy (0-70) stay muted and
- * close together, so only genuinely busy buildings (roughly the top third
- * of the range) climb fast through hot magenta into a glowing cyan flash.
- * That asymmetry, paired with a high bloom threshold below, is what makes
+ * The color ramp that gives Lima its "living city" feel. Idle buildings
+ * are a faint, translucent white — present and readable as city fabric
+ * without demanding attention — and stay muted through medium occupancy
+ * (0-70). Only genuinely busy buildings (roughly the top third of the
+ * range) climb fast through hot magenta into a glowing cyan flash. That
+ * asymmetry, paired with a high bloom threshold below, is what makes
  * buildings visibly "light up and fade" as their occupancy peaks and
  * passes, rather than sitting brightly lit for a large share of the loop.
  */
 const OCCUPANCY_COLOR_STOPS = [
-  { value: 0, color: "#07030d" },
-  { value: 40, color: "#26082f" },
+  { value: 0, color: "rgba(255, 255, 255, 0.1)" },
+  { value: 40, color: "rgba(255, 255, 255, 0.22)" },
   { value: 70, color: "#9c14a8" },
   { value: 88, color: "#ff36d0" },
   { value: 100, color: "#22ffe6" }
@@ -76,8 +71,6 @@ export interface LimaView {
   layer: FeatureLayer;
   /** Updates the renderer to reflect occupancy at the given simulated hour (0-24). */
   applyOccupancyHour(simulatedHour: number): void;
-  /** Reads a building's OCC_TYPE + osm_id from a screen point, for the hover tooltip. */
-  hitTestBuilding(screenPoint: { x: number; y: number }): Promise<Record<string, unknown> | null>;
 }
 
 /**
@@ -111,7 +104,7 @@ export async function createLimaView(container: HTMLDivElement): Promise<LimaVie
 
   const layer = new FeatureLayer({
     ...resolveFeatureLayerSource(FEATURE_LAYER_URL),
-    outFields: [UNIQUE_ID_FIELD, OCC_TYPE_FIELD, ...OCC_FIELDS],
+    outFields: [UNIQUE_ID_FIELD, ...OCC_FIELDS],
     popupEnabled: false,
     renderer,
     // A strong bloom with a high threshold: only pixels that are already
@@ -165,13 +158,5 @@ export async function createLimaView(container: HTMLDivElement): Promise<LimaVie
     colorVariable.valueExpression = getOccupancyExpression(simulatedHour);
   }
 
-  async function hitTestBuilding(
-    screenPoint: { x: number; y: number }
-  ): Promise<Record<string, unknown> | null> {
-    const result = await view.hitTest(screenPoint, { include: layer });
-    const graphic = result.results[0]?.type === "graphic" ? result.results[0].graphic : undefined;
-    return graphic ? (graphic.attributes as Record<string, unknown>) : null;
-  }
-
-  return { view, layer, applyOccupancyHour, hitTestBuilding };
+  return { view, layer, applyOccupancyHour };
 }

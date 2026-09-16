@@ -4,8 +4,6 @@ import "@arcgis/core/assets/esri/themes/dark/main.css";
 import { createLimaView, FeatureLayerConfigError } from "./map";
 import { AnimationClock } from "./animationClock";
 import { Ui } from "./ui";
-import { interpolateOccupancy } from "./occupancy";
-import { OCC_TYPE_FIELD } from "./config";
 
 async function main(): Promise<void> {
   const ui = new Ui();
@@ -25,13 +23,11 @@ async function main(): Promise<void> {
     return;
   }
 
-  const { view, applyOccupancyHour, hitTestBuilding } = limaView;
+  const { applyOccupancyHour } = limaView;
   ui.hideLoading();
 
-  // The animation clock owns the simulated time-of-day. It ticks the clock
-  // and timeline every frame, and throttles pushes into the renderer's
-  // Arcade expression (see AnimationClock) so we're not rebuilding the
-  // visualization 60 times a second.
+  // The animation clock owns the simulated time-of-day, ticking the clock,
+  // timeline, and renderer together every frame (see AnimationClock).
   const clock = new AnimationClock(
     (hour) => ui.setSimulatedHour(hour),
     (hour) => applyOccupancyHour(hour)
@@ -56,28 +52,6 @@ async function main(): Promise<void> {
   });
 
   ui.onSpeedChange((multiplier) => clock.setSpeedMultiplier(multiplier));
-
-  // Minimal hover tooltip: OCC_TYPE + the current interpolated occupancy.
-  // Popups are intentionally not used — the animation is the focal point.
-  let hitTestInFlight = false;
-  view.on("pointer-move", async (event) => {
-    if (hitTestInFlight) return;
-    hitTestInFlight = true;
-    try {
-      const attributes = await hitTestBuilding({ x: event.x, y: event.y });
-      if (attributes) {
-        const occType = String(attributes[OCC_TYPE_FIELD] ?? "Desconocido");
-        const occupancy = interpolateOccupancy(clock.simulatedHour, attributes);
-        ui.showTooltip(event.x, event.y, occType, occupancy);
-      } else {
-        ui.hideTooltip();
-      }
-    } finally {
-      hitTestInFlight = false;
-    }
-  });
-
-  view.container?.addEventListener("pointerleave", () => ui.hideTooltip());
 }
 
 main();
