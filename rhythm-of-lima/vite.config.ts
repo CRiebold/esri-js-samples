@@ -1,11 +1,15 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vite";
+import { defineConfig, normalizePath } from "vite";
 import { viteStaticCopy } from "vite-plugin-static-copy";
 
-const arcgisAssetsDir = fileURLToPath(
-  new URL("./node_modules/@arcgis/core/assets", import.meta.url)
+// normalizePath converts Windows backslashes to forward slashes — tinyglobby
+// (used internally by vite-plugin-static-copy) treats `\` as a glob escape
+// character, so an un-normalized Windows path silently matches zero files.
+const arcgisAssetsDir = normalizePath(
+  fileURLToPath(new URL("./node_modules/@arcgis/core/assets", import.meta.url))
 );
+const projectRoot = normalizePath(process.cwd());
 
 export default defineConfig({
   base: "./",
@@ -30,8 +34,11 @@ export default defineConfig({
           // that auto-preserved nesting before re-descending into the path
           // relative to the assets folder itself.
           rename: (_name, _ext, fullPath) => {
-            const relFromAssets = path.relative(arcgisAssetsDir, fullPath).split(path.sep).join("/");
-            const nestedDepth = path.relative(process.cwd(), path.dirname(fullPath)).split(path.sep).length;
+            const normalizedFullPath = normalizePath(fullPath);
+            const relFromAssets = path.posix.relative(arcgisAssetsDir, normalizedFullPath);
+            const nestedDepth = path.posix
+              .relative(projectRoot, path.posix.dirname(normalizedFullPath))
+              .split("/").length;
             return "../".repeat(nestedDepth) + relFromAssets;
           }
         }
