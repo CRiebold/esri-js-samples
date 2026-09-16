@@ -21,6 +21,25 @@ export const UNIQUE_ID_FIELD = "osm_id";
 export const DAY_DURATION_SECONDS = 6;
 
 /**
+ * Time-warping for the playback loop. Real occupancy data isn't uniformly
+ * "interesting" across 24 hours — the pre-dawn stretch in Lima's dataset
+ * stays quiet until around 8am, then a lot happens the rest of the day. A
+ * constant-speed clock spends a third of every loop on that quiet stretch
+ * with visibly nothing changing. Instead, hours before QUIET_HOURS_END are
+ * compressed into just QUIET_HOURS_TIME_SHARE of the loop's real playback
+ * time, and the livelier remaining hours are stretched to fill the rest —
+ * same total loop length, but far more of it spent where buildings are
+ * actually lighting up. This only affects autoplay pacing: dragging the
+ * timeline still jumps straight to the exact hour requested (see
+ * mapLoopPositionToHour/mapHourToLoopPosition in src/occupancy.ts).
+ *
+ * Re-tune these after watching the real data — if the lively stretch
+ * actually starts earlier/later than 8am, move QUIET_HOURS_END to match.
+ */
+export const QUIET_HOURS_END = 8;
+export const QUIET_HOURS_TIME_SHARE = 0.15;
+
+/**
  * Lima, Peru — the fallback center/scale if the layer's extent can't be
  * read, AND the view's hard `minScale` cap (see src/map.ts). Esri's own
  * "Animate color visual variable" sample bounds how far you can zoom out

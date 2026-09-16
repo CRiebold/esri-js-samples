@@ -1,3 +1,5 @@
+import { QUIET_HOURS_END, QUIET_HOURS_TIME_SHARE } from "./config";
+
 /**
  * Occupancy interpolation
  * ------------------------------------------------------------------------
@@ -53,4 +55,35 @@ export function formatClock(simulatedHour: number): string {
   const hh = Math.floor(totalMinutes / 60) % 24;
   const mm = totalMinutes % 60;
   return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+}
+
+/**
+ * Maps a normalized position in the playback loop (`loopT`, in [0, 1),
+ * advancing at constant real-time speed) to a simulated hour (0-24),
+ * per the QUIET_HOURS_* time-warp described in src/config.ts: the quiet
+ * pre-dawn stretch is compressed into a smaller slice of real playback
+ * time, and the livelier rest of the day is stretched to fill the rest.
+ */
+export function mapLoopPositionToHour(loopT: number): number {
+  const t = ((loopT % 1) + 1) % 1;
+  if (t < QUIET_HOURS_TIME_SHARE) {
+    return (t / QUIET_HOURS_TIME_SHARE) * QUIET_HOURS_END;
+  }
+  const liveT = (t - QUIET_HOURS_TIME_SHARE) / (1 - QUIET_HOURS_TIME_SHARE);
+  return QUIET_HOURS_END + liveT * (24 - QUIET_HOURS_END);
+}
+
+/**
+ * The inverse of mapLoopPositionToHour — which loop position corresponds
+ * to a given simulated hour. Used when jumping to a specific hour (e.g.
+ * dragging the timeline) so autoplay can resume from the right place in
+ * the warped loop without jumping or skipping hours.
+ */
+export function mapHourToLoopPosition(simulatedHour: number): number {
+  const hour = normalizeHour(simulatedHour);
+  if (hour < QUIET_HOURS_END) {
+    return (hour / QUIET_HOURS_END) * QUIET_HOURS_TIME_SHARE;
+  }
+  const liveFraction = (hour - QUIET_HOURS_END) / (24 - QUIET_HOURS_END);
+  return QUIET_HOURS_TIME_SHARE + liveFraction * (1 - QUIET_HOURS_TIME_SHARE);
 }

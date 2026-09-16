@@ -104,6 +104,25 @@ Dragging the timeline calls `AnimationClock.seek()`, which updates both
 immediately. The speed slider calls `AnimationClock.setSpeedMultiplier()`,
 which scales the clock's rate without resetting or rebuilding it.
 
+### Quiet-hours time-warp
+
+Autoplay doesn't move through the 24 simulated hours at a constant rate.
+`AnimationClock` advances a normalized loop position (0-1) at constant
+wall-clock speed and maps it to an hour via `mapLoopPositionToHour()`
+(`src/occupancy.ts`), which compresses hours before `QUIET_HOURS_END`
+(`src/config.ts`) into just `QUIET_HOURS_TIME_SHARE` of the loop's real
+playback time, stretching the livelier rest of the day to fill the
+remainder. With the real Lima data, little visibly changes before ~8am, so
+by default that whole stretch is compressed into the first ~15% of each
+loop instead of taking its "fair" linear third — the loop stays the same
+length, but far more of it is spent where buildings are actually lighting
+up. `mapHourToLoopPosition()` is the inverse, used by `seek()` so dragging
+the timeline still jumps to the exact hour requested and autoplay resumes
+from the right point in the warped loop. **Re-tune `QUIET_HOURS_END` and
+`QUIET_HOURS_TIME_SHARE`** after watching the real data — if the livelier
+stretch starts at a different hour, or needs more/less of the loop, those
+two constants are the only thing to change.
+
 `getOccupancyExpression()` in `src/occupancy.ts` builds the actual Arcade
 expression, e.g. for hour 18.5:
 

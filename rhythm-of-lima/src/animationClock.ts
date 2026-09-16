@@ -1,5 +1,5 @@
 import { DAY_DURATION_SECONDS } from "./config";
-import { normalizeHour } from "./occupancy";
+import { mapHourToLoopPosition, mapLoopPositionToHour } from "./occupancy";
 
 export type ClockTickHandler = (simulatedHour: number) => void;
 
@@ -14,13 +14,18 @@ export type ClockTickHandler = (simulatedHour: number) => void;
  * new Arcade expression to the map's renderer), not because they run at
  * different rates.
  *
- * The clock advances using wall-clock delta time (not frame count), so the
- * simulated day takes the same DAY_DURATION_SECONDS regardless of frame
- * rate. `speedMultiplier` scales that base rate at runtime (e.g. for a
- * speed slider) without needing to reconstruct the clock.
+ * Internally the clock advances a normalized *loop position* (0-1) at
+ * constant wall-clock speed — using delta time, not frame count, so a full
+ * loop always takes DAY_DURATION_SECONDS regardless of frame rate — and
+ * maps that to a simulated hour via mapLoopPositionToHour(), which is
+ * where the quiet-hours time-warp (see src/config.ts) is applied. Autoplay
+ * therefore doesn't move through simulated hours at a constant rate, but
+ * `simulatedHour` and everything callers see is a plain 0-24 value either
+ * way. `speedMultiplier` scales loop speed at runtime (e.g. for a speed
+ * slider) without needing to reconstruct the clock.
  */
 export class AnimationClock {
-  private hour = 0;
+  private loopPosition = 0;
   private playing = true;
   private speedMultiplier = 1;
   private lastFrameTime: number | null = null;
@@ -32,7 +37,7 @@ export class AnimationClock {
   ) {}
 
   get simulatedHour(): number {
-    return this.hour;
+    return mapLoopPositionToHour(this.loopPosition);
   }
 
   get isPlaying(): boolean {
@@ -63,9 +68,10 @@ export class AnimationClock {
 
   /** Jumps directly to a simulated hour (e.g. from dragging the timeline) and repaints immediately. */
   seek(simulatedHour: number): void {
-    this.hour = normalizeHour(simulatedHour);
-    this.onTick(this.hour);
-    this.onRendererUpdate(this.hour);
+    this.loopPosition = mapHourToLoopPosition(simulatedHour);
+    const hour = this.simulatedHour;
+    this.onTick(hour);
+    this.onRendererUpdate(hour);
   }
 
   private frame = (now: number): void => {
@@ -74,10 +80,11 @@ export class AnimationClock {
     this.lastFrameTime = now;
 
     if (this.playing) {
-      const hoursPerSecond = (24 / DAY_DURATION_SECONDS) * this.speedMultiplier;
-      this.hour = normalizeHour(this.hour + deltaSeconds * hoursPerSecond);
-      this.onTick(this.hour);
-      this.onRendererUpdate(this.hour);
+      const loopsPerSecond = (1 / DAY_DURATION_SECONDS) * this.speedMultiplier;
+      this.loopPosition = (this.loopPosition + deltaSeconds * loopsPerSecond) % 1;
+      const hour = this.simulatedHour;
+      this.onTick(hour);
+      this.onRendererUpdate(hour);
     }
 
     this.rafHandle = requestAnimationFrame(this.frame);
