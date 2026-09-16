@@ -17,12 +17,9 @@ export type ClockTickHandler = (simulatedHour: number) => void;
  * Internally the clock advances a normalized *loop position* (0-1) at
  * constant wall-clock speed — using delta time, not frame count, so a full
  * loop always takes DAY_DURATION_SECONDS regardless of frame rate — and
- * maps that to a simulated hour via mapLoopPositionToHour(), which is
- * where the quiet-hours time-warp (see src/config.ts) is applied. Autoplay
- * therefore doesn't move through simulated hours at a constant rate, but
- * `simulatedHour` and everything callers see is a plain 0-24 value either
- * way. `speedMultiplier` scales loop speed at runtime (e.g. for a speed
- * slider) without needing to reconstruct the clock.
+ * maps that linearly to a simulated hour via mapLoopPositionToHour().
+ * `speedMultiplier` scales loop speed at runtime (e.g. for a speed slider)
+ * without needing to reconstruct the clock.
  */
 export class AnimationClock {
   private loopPosition = 0;

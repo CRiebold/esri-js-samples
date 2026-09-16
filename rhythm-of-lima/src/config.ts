@@ -37,26 +37,6 @@ export const OCC_MAX_FIELD = "OCC_MAX";
 export const DAY_DURATION_SECONDS = 6;
 
 /**
- * Time-warping for the playback loop: hours before QUIET_HOURS_END can be
- * compressed into just QUIET_HOURS_TIME_SHARE of the loop's real playback
- * time, stretching the rest of the day to fill the remainder — same total
- * loop length, but more of it spent wherever's actually interesting. This
- * only affects autoplay pacing; dragging the timeline always jumps
- * straight to the exact hour requested (see mapLoopPositionToHour /
- * mapHourToLoopPosition in src/occupancy.ts).
- *
- * Currently a no-op (QUIET_HOURS_TIME_SHARE == QUIET_HOURS_END / 24, its
- * "fair" linear share, makes the mapping exactly linear). The single-field
- * category model in src/occupancy.ts has a different rhythm than the old
- * per-hour data this was tuned against — the liveliest stretch is now
- * overnight (residential peaking ~1am), with quieter transitions around
- * 5-9am and 17-21h — so a single compressed "boring" stretch may no longer
- * fit. Re-tune both constants after watching the new model play out.
- */
-export const QUIET_HOURS_END = 8;
-export const QUIET_HOURS_TIME_SHARE = QUIET_HOURS_END / 24;
-
-/**
  * A secondary, faster "twinkle" layered on top of each building's main
  * daily curve (see getOccupancyExpression in src/occupancy.ts). Without
  * it, the whole city moves as one wave — quiet in the morning, one big

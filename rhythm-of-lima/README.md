@@ -218,28 +218,26 @@ Dragging the timeline calls `AnimationClock.seek()`, which updates both
 immediately. The speed slider calls `AnimationClock.setSpeedMultiplier()`,
 which scales the clock's rate without resetting or rebuilding it.
 
-### Quiet-hours time-warp
+`AnimationClock` advances a normalized loop position (0-1) at constant
+wall-clock speed and maps it *linearly* to a simulated hour via
+`mapLoopPositionToHour()` (`src/occupancy.ts`) — every real-time second
+always advances the clock by the same number of simulated hours, day or
+night. `mapHourToLoopPosition()` is the inverse, used by `seek()` so
+dragging the timeline always jumps to the exact hour requested.
 
-Autoplay doesn't have to move through the 24 simulated hours at a constant
-rate. `AnimationClock` advances a normalized loop position (0-1) at
-constant wall-clock speed and maps it to an hour via
-`mapLoopPositionToHour()` (`src/occupancy.ts`), which can compress hours
-before `QUIET_HOURS_END` (`src/config.ts`) into just
-`QUIET_HOURS_TIME_SHARE` of the loop's real playback time, stretching the
-livelier rest of the day to fill the remainder — same total loop length,
-but more of it spent wherever's actually interesting. `mapHourToLoopPosition()`
-is the inverse, used by `seek()` so dragging the timeline always jumps to
-the exact hour requested and autoplay resumes from the right point in the
-warped loop afterward.
-
-**This is currently a no-op** (`QUIET_HOURS_TIME_SHARE` is set to exactly
-`QUIET_HOURS_END / 24`, its own "fair" linear share, which makes the
-mapping plain linear). It was tuned once against the old 24-field data,
-which had one obvious ~8-hour dead stretch — but the category-curve model
-above has a different rhythm (liveliest overnight, with quieter transitions
-around dawn and dusk instead of one big gap), so that specific tuning no
-longer applies. Watch the new model play out and re-tune both constants if
-a stretch still feels dead.
+An earlier version of this could compress "quiet" hours into a smaller
+slice of real playback time, stretching the livelier rest of the day to
+fill the remainder. It was tuned once against the old 24-field data, which
+had one obvious dead stretch — but every model since (the category-curve
+model, then the twinkle/shine/spread tuning above) already spreads
+liveliness across the whole loop on its own, so that time-warp had become
+inert (mathematically identical to a plain linear mapping, not just
+visually) and was removed. If a stretch of the loop ever feels dead again,
+tune the occupancy model itself (`CATEGORY_SHAPES`/`CATEGORY_BASE`,
+`RIPPLE_*`) rather than reintroducing a variable-speed clock — a building
+looking dim because the *clock* is briefly sprinting through its hour is a
+much easier thing to misread as "nothing happening there" than an actually
+dim building.
 
 ## Visual design
 
