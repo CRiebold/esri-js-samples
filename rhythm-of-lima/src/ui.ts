@@ -10,6 +10,8 @@ const MINUTES_PER_DAY = 24 * 60;
 export class Ui {
   private readonly clockEl = requireEl<HTMLDivElement>("clock");
   private readonly timelineEl = requireEl<HTMLInputElement>("timeline");
+  private readonly speedSliderEl = requireEl<HTMLInputElement>("speedSlider");
+  private readonly speedValueEl = requireEl<HTMLSpanElement>("speedValue");
   private readonly playPauseBtn = requireEl<HTMLButtonElement>("playPauseBtn");
   private readonly iconPlay = requireEl<SVGElement>("iconPlay");
   private readonly iconPause = requireEl<SVGElement>("iconPause");
@@ -30,6 +32,16 @@ export class Ui {
     this.timelineEl.addEventListener("pointerdown", () => (this.draggingTimeline = true));
     this.timelineEl.addEventListener("input", emit);
     window.addEventListener("pointerup", () => (this.draggingTimeline = false));
+  }
+
+  /** Fires while the user drags the speed slider, with a multiplier (0.25 - 4). */
+  onSpeedChange(handler: (multiplier: number) => void): void {
+    this.speedSliderEl.addEventListener("input", () => {
+      const multiplier = Number(this.speedSliderEl.value);
+      const label = Number.isInteger(multiplier) ? `${multiplier}.0` : `${multiplier}`;
+      this.speedValueEl.textContent = `${label}×`;
+      handler(multiplier);
+    });
   }
 
   /** Updates the clock readout and timeline position. Skipped for the timeline while the user is actively dragging it. */

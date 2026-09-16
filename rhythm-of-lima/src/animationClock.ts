@@ -20,11 +20,14 @@ export type ClockTickHandler = (simulatedHour: number) => void;
  *    updates/second the color transition still reads as fully continuous.
  *
  * The clock advances using wall-clock delta time (not frame count), so the
- * simulated day takes the same ~30 real seconds regardless of frame rate.
+ * simulated day takes the same DAY_DURATION_SECONDS regardless of frame
+ * rate. `speedMultiplier` scales that base rate at runtime (e.g. for a
+ * speed slider) without needing to reconstruct the clock.
  */
 export class AnimationClock {
   private hour = 0;
   private playing = true;
+  private speedMultiplier = 1;
   private lastFrameTime: number | null = null;
   private lastRendererUpdateTime = 0;
   private rafHandle = 0;
@@ -59,6 +62,11 @@ export class AnimationClock {
     this.playing = false;
   }
 
+  /** Scales playback speed at runtime, e.g. from a speed slider. 1 = normal speed. */
+  setSpeedMultiplier(multiplier: number): void {
+    this.speedMultiplier = multiplier;
+  }
+
   /** Jumps directly to a simulated hour (e.g. from dragging the timeline) and repaints immediately. */
   seek(simulatedHour: number): void {
     this.hour = normalizeHour(simulatedHour);
@@ -72,7 +80,7 @@ export class AnimationClock {
     this.lastFrameTime = now;
 
     if (this.playing) {
-      const hoursPerSecond = 24 / DAY_DURATION_SECONDS;
+      const hoursPerSecond = (24 / DAY_DURATION_SECONDS) * this.speedMultiplier;
       this.hour = normalizeHour(this.hour + deltaSeconds * hoursPerSecond);
       this.onTick(this.hour);
       this.pushRendererUpdate(false);

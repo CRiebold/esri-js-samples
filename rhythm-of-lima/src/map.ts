@@ -16,18 +16,19 @@ import {
 import { OCC_FIELDS, getOccupancyExpression } from "./occupancy";
 
 /**
- * The color ramp that gives Lima its "living city" feel: buildings sit
- * nearly invisible against the dark basemap when idle, then climb through
- * deep violet and hot magenta into a glowing cyan at peak occupancy —
- * a punchier, more electric progression (closer to Esri's own
- * "Animate color visual variable" sample) than a plain dark-to-light blue
- * ramp, which read as flat/washed-out on a live screen.
+ * The color ramp that gives Lima its "living city" feel. Stops are
+ * deliberately back-loaded — low and medium occupancy (0-70) stay muted and
+ * close together, so only genuinely busy buildings (roughly the top third
+ * of the range) climb fast through hot magenta into a glowing cyan flash.
+ * That asymmetry, paired with a high bloom threshold below, is what makes
+ * buildings visibly "light up and fade" as their occupancy peaks and
+ * passes, rather than sitting brightly lit for a large share of the loop.
  */
 const OCCUPANCY_COLOR_STOPS = [
-  { value: 0, color: "#0a0512" },
-  { value: 25, color: "#4a0d6b" },
-  { value: 50, color: "#c81fb0" },
-  { value: 75, color: "#ff4ed6" },
+  { value: 0, color: "#07030d" },
+  { value: 40, color: "#26082f" },
+  { value: 70, color: "#9c14a8" },
+  { value: 88, color: "#ff36d0" },
   { value: 100, color: "#22ffe6" }
 ];
 
@@ -113,11 +114,10 @@ export async function createLimaView(container: HTMLDivElement): Promise<LimaVie
     outFields: [UNIQUE_ID_FIELD, OCC_TYPE_FIELD, ...OCC_FIELDS],
     popupEnabled: false,
     renderer,
-    // A strong, tight bloom (matching the intensity of Esri's own
-    // "Animate color visual variable" sample) so the brightest, busiest
-    // buildings genuinely glow rather than just looking like a slightly
-    // lighter fill color.
-    effect: "bloom(2.5, 0px, 50%)"
+    // A strong bloom with a high threshold: only pixels that are already
+    // near-peak-bright cross it, so the glow reads as a brief flash on the
+    // busiest buildings rather than a haze sitting over half the map.
+    effect: "bloom(2.8, 0px, 65%)"
   });
 
   try {

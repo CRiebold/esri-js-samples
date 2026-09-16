@@ -84,10 +84,16 @@ body {
 
 #titleBlock {
   position: absolute;
-  top: 28px;
-  left: 32px;
+  top: 24px;
+  left: 24px;
   z-index: 10;
   pointer-events: none;
+  max-width: min(420px, calc(100vw - 48px));
+  padding: 16px 22px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  backdrop-filter: blur(10px);
 }
 
 #titleBlock h1 {
@@ -95,7 +101,6 @@ body {
   font-size: 1.6rem;
   font-weight: 600;
   letter-spacing: 0.02em;
-  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.6);
 }
 
 #titleBlock p {
@@ -103,6 +108,17 @@ body {
   font-size: 0.85rem;
   color: var(--ink-dim);
   letter-spacing: 0.02em;
+}
+
+#poweredBy {
+  margin-top: 10px !important;
+  padding-top: 10px;
+  border-top: 1px solid var(--panel-border);
+  font-size: 0.68rem !important;
+  text-transform: uppercase;
+  letter-spacing: 0.08em !important;
+  color: var(--ink-dim);
+  opacity: 0.8;
 }
 
 /* --- Tooltip ------------------------------------------------------------ */
@@ -216,6 +232,60 @@ body {
   border-radius: 50%;
   background: var(--accent);
   box-shadow: 0 0 8px var(--accent-dim);
+  cursor: pointer;
+}
+
+#speedRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+#speedRow label {
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  color: var(--ink-dim);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+#speedValue {
+  flex: 0 0 auto;
+  width: 3.2em;
+  text-align: left;
+  font-family: "SF Mono", "Roboto Mono", "Consolas", monospace;
+  font-size: 0.78rem;
+  color: var(--accent);
+}
+
+#speedSlider {
+  flex: 1 1 auto;
+  appearance: none;
+  height: 3px;
+  border-radius: 2px;
+  background: #1a2530;
+  outline: none;
+  cursor: pointer;
+}
+
+#speedSlider::-webkit-slider-thumb {
+  appearance: none;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent-dim);
+  cursor: pointer;
+}
+
+#speedSlider::-moz-range-thumb {
+  width: 11px;
+  height: 11px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent-dim);
   cursor: pointer;
 }
 

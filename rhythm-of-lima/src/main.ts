@@ -55,6 +55,8 @@ async function main(): Promise<void> {
     clock.seek(hour);
   });
 
+  ui.onSpeedChange((multiplier) => clock.setSpeedMultiplier(multiplier));
+
   // Minimal hover tooltip: OCC_TYPE + the current interpolated occupancy.
   // Popups are intentionally not used — the animation is the focal point.
   let hitTestInFlight = false;

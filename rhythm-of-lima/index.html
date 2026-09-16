@@ -26,6 +26,7 @@
     <header id="titleBlock">
       <h1>El Ritmo de Lima</h1>
       <p>Ocupación urbana simulada a lo largo del día</p>
+      <p id="poweredBy">Creado con ArcGIS Maps SDK for JavaScript &middot; Esri</p>
     </header>
 
     <div id="tooltip" class="tooltip tooltip--hidden"></div>
@@ -40,6 +41,12 @@
         </button>
 
         <input id="timeline" type="range" min="0" max="1440" step="1" value="0" aria-label="Hora del día" />
+      </div>
+
+      <div id="speedRow">
+        <label for="speedSlider">Velocidad</label>
+        <input id="speedSlider" type="range" min="0.25" max="4" step="0.25" value="1" aria-label="Velocidad de la animación" />
+        <span id="speedValue">1.0&times;</span>
       </div>
 
       <p id="disclaimer">Datos de ocupación sintéticos, solo con fines demostrativos</p>

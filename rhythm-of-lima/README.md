@@ -19,14 +19,16 @@ ocupación sintéticos" label in the app itself.
   using a continuous Color Visual Variable, driven by an Arcade expression
   that linearly interpolates between the two hourly `OCC_HH` fields that
   bracket the current time (circularly, so 23:30 blends `OCC_23`/`OCC_00`).
-- Plays a full simulated day in ~6 real seconds, looping continuously, with
-  a large digital clock, a draggable 24-hour timeline, and Play/Pause. The
-  pace and the violet → magenta → cyan color ramp + strong bloom are
-  deliberately tuned to match the energy of Esri's own
+- Plays a full simulated day in ~6 real seconds by default, looping
+  continuously, with a large digital clock, a draggable 24-hour timeline,
+  Play/Pause, and a speed slider (0.25×–4×) to slow it down or speed it up
+  live. The base pace, the violet → magenta → cyan color ramp, and the
+  strong bloom are deliberately tuned to match the energy of Esri's own
   ["Animate color visual variable"](https://developers.arcgis.com/javascript/latest/sample-code/visualization-vv-color-animate/)
   sample rather than a slow, subtle fade.
-- Uses a dark, minimal basemap with a strong bloom effect so the busiest
-  (brightest) buildings visibly glow.
+- Uses a dark, minimal basemap with a strong, high-threshold bloom effect,
+  so only genuinely busy buildings flash brightly and fade rather than a
+  large share of the map staying lit at once.
 
 ## Tech stack
 
@@ -97,7 +99,9 @@ at different rates:
   continuous.
 
 Dragging the timeline calls `AnimationClock.seek()`, which bypasses the
-throttle and repaints immediately.
+throttle and repaints immediately. The speed slider calls
+`AnimationClock.setSpeedMultiplier()`, which scales the clock's rate without
+resetting or rebuilding it.
 
 `getOccupancyExpression()` in `src/occupancy.ts` builds the actual Arcade
 expression, e.g. for hour 18.5:
@@ -105,6 +109,26 @@ expression, e.g. for hour 18.5:
 ```
 $feature.OCC_18 * (1 - 0.5) + $feature.OCC_19 * 0.5
 ```
+
+### Why buildings brighten *and* dim within a single day
+
+Unlike a sample that plays through strictly increasing values (e.g. a
+building's construction year), each building's occupancy naturally rises
+and falls over 24 hours — often with more than one peak (e.g. a residential
+building busy both in the early morning and at night). So a building's
+color legitimately climbs to cyan and back down to violet more than once
+per loop; that's the data's real daily rhythm, not an inconsistency in the
+color ramp.
+
+### Why buildings don't stay lit for long
+
+`OCCUPANCY_COLOR_STOPS` in `src/map.ts` is deliberately back-loaded: 0–70
+maps to a narrow, muted violet-to-magenta range, and only 70–100 ramps
+quickly through hot pink into bright cyan. Combined with a high bloom
+threshold (`bloom(2.8, 0px, 65%)`, only pixels in roughly the top third of
+brightness actually bloom), a building only "flashes" while genuinely near
+its peak, then fades quickly — rather than staying visibly lit for a large
+share of the loop.
 
 ## Notes on `arcgisConfig.ts` / local SDK assets
 
@@ -125,6 +149,17 @@ exception is `OCC_TYPE` itself, shown verbatim in the hover tooltip — its
 values come directly from the feature layer's data, so their language
 depends on how that field was populated in the source service, not on this
 app's code.
+
+## Esri / ArcGIS credit
+
+The title panel includes a text credit line ("Creado con ArcGIS Maps SDK
+for JavaScript · Esri"). This is plain text, not Esri's official logo — no
+Esri brand asset was available to embed in the environment this was built
+in. To use the actual Esri wordmark/logo, drop the image file into
+`src/` (or a new `public/` folder) and swap the `#poweredBy` text in
+`index.html` for an `<img>` referencing it. The small "Powered by Esri"
+attribution shown by the `MapView` itself (bottom-right of the map) is
+separate and always present, as required by Esri's basemap terms of use.
 
 ## Error handling & loading state
 
