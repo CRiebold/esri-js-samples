@@ -74,6 +74,45 @@ function resolveFeatureLayerSource(
   );
 }
 
+/**
+ * Sanity-checks that the published layer actually carries OCC_TYPE/
+ * PEAK_HR/OCC_MAX for its features, and warns loudly in the console if a
+ * meaningful share are missing. If a CSV-to-polygon join (e.g. by osm_id)
+ * silently failed to match some or all records — a common cause being a
+ * data-type mismatch between the two sides' join field — those buildings
+ * come back with null values for all three fields. The Arcade expression
+ * in getOccupancyExpression() then evaluates to null for them (any
+ * arithmetic on a null operand is null in Arcade), so ColorVariable falls
+ * back to the renderer's plain default symbol instead of animating them —
+ * which is exactly what "all buildings appear, but they're all dark"
+ * looks like. This check can't fix a bad join, but it turns a silent,
+ * confusing symptom into an explicit, actionable message.
+ */
+async function warnIfOccupancyDataMissing(layer: FeatureLayer): Promise<void> {
+  try {
+    const [total, missing] = await Promise.all([
+      layer.queryFeatureCount(),
+      layer.queryFeatureCount({
+        where: `${OCC_TYPE_FIELD} IS NULL OR ${PEAK_HR_FIELD} IS NULL OR ${OCC_MAX_FIELD} IS NULL`
+      })
+    ]);
+
+    if (total > 0 && missing > 0) {
+      const pct = ((missing / total) * 100).toFixed(1);
+      console.warn(
+        `[Rhythm of Lima] ${missing} de ${total} edificios (${pct}%) no tienen valores en ` +
+          `${OCC_TYPE_FIELD}/${PEAK_HR_FIELD}/${OCC_MAX_FIELD}. Es muy probable que el join por ` +
+          `${UNIQUE_ID_FIELD} no haya emparejado esos registros — revisa que el campo ${UNIQUE_ID_FIELD} ` +
+          `tenga el mismo tipo de dato (numérico vs. texto) en la capa de polígonos y en el CSV antes ` +
+          `de unirlos. Esos edificios se dibujan con el color por defecto del símbolo, sin animación de ocupación.`
+      );
+    }
+  } catch (error) {
+    // Diagnostic only — a failed check should never block the map from rendering.
+    console.warn("[Rhythm of Lima] No se pudo verificar la integridad de los datos de ocupación.", error);
+  }
+}
+
 export interface LimaView {
   view: MapView;
   layer: FeatureLayer;
@@ -130,6 +169,8 @@ export async function createLimaView(container: HTMLDivElement): Promise<LimaVie
         `Error original: ${error instanceof Error ? error.message : String(error)}`
     );
   }
+
+  await warnIfOccupancyDataMissing(layer);
 
   const map = new Map({
     basemap: "dark-gray-vector",
