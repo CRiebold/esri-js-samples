@@ -1,58 +1,58 @@
-import { OCC_TYPE_FIELD, QUIET_HOURS_END, QUIET_HOURS_TIME_SHARE, UNIQUE_ID_FIELD } from "./config";
+import { OCC_TYPE_FIELD, PEAK_HR_FIELD, OCC_MAX_FIELD, QUIET_HOURS_END, QUIET_HOURS_TIME_SHARE } from "./config";
 
 /**
  * Occupancy model
  * ------------------------------------------------------------------------
- * Each building stores exactly one classification field, OCC_TYPE (its use
- * category — "residential", "office", "retail_food", etc.), plus its
- * existing unique id. There is no per-hour data at all: every category has
- * a single daily activity curve — one peak hour, how wide that peak is,
- * a baseline floor, and a peak intensity — and the live occupancy for any
- * simulated hour is computed entirely inside the Arcade expression below,
- * the same way Esri's own "Animate color visual variable" sample derives
- * a building's color from a single CNSTRCT_YR field and the current slider
- * value, rather than from dozens of pre-computed per-year fields.
+ * Each building stores three fields — the same classification fields the
+ * original brief described:
  *
- * A building's own osm_id seeds a small deterministic jitter (via a classic
- * linear-congruential pseudo-random formula, mirrored in both this file and
- * the generated Arcade expression) so buildings in the same category don't
- * all peak at the exact same minute — without needing any extra stored
- * field beyond the id every feature already has.
+ *   OCC_TYPE  its use category ("residential", "office", "hospitality"...)
+ *   PEAK_HR   the real number (0-24) this specific building's activity
+ *             peaks at — an actual, inspectable value per building, e.g.
+ *             13.5. This plays the same role CNSTRCT_YR plays in Esri's
+ *             own "Animate color visual variable" sample: it's the one
+ *             number the whole animation is driven by.
+ *   OCC_MAX   this building's peak occupancy intensity (0-100)
+ *
+ * There is no per-hour data at all — PEAK_HR and OCC_MAX already bake in a
+ * small per-building jitter (see scripts/classify_occ_type.py), computed
+ * once when the data was generated, not live. Only OCC_TYPE is looked up
+ * at render time, in CATEGORY_SHAPES below, for how WIDE this building's
+ * activity peak is and its baseline floor — those two shape parameters
+ * are roughly constant within a category, so they aren't stored per
+ * building.
  */
 
-interface CategoryProfile {
-  /** Hour (0-23) this category's activity peaks at, before per-building jitter. */
-  peakHour: number;
-  /** How wide the peak is — larger stays elevated longer around peakHour. */
+interface CategoryShape {
+  /** How wide the peak is — larger stays elevated longer around PEAK_HR. */
   width: number;
   /** Baseline occupancy far from the peak. */
   floor: number;
-  /** Occupancy at the peak, before per-building jitter. */
-  max: number;
 }
 
 /**
- * One curve per building-use category, tuned against Lima's real OSM
+ * One curve shape per building-use category, tuned against Lima's real OSM
  * building mix (still ~85% residential) to produce the intended citywide
  * story: residential dominant overnight and early morning, offices/schools
  * ramping up through the morning, business/retail peaking midday, and a
- * shift back toward residential/hospitality in the evening.
+ * shift back toward residential/hospitality in the evening. Must match
+ * CATEGORY_BASE's category list in scripts/classify_occ_type.py.
  */
-const CATEGORY_PROFILES: Record<string, CategoryProfile> = {
-  residential: { peakHour: 1, width: 4.5, floor: 18, max: 70 },
-  office: { peakHour: 12.5, width: 3, floor: 8, max: 85 },
-  education: { peakHour: 10, width: 2.2, floor: 4, max: 90 },
-  healthcare: { peakHour: 14, width: 9, floor: 45, max: 90 },
-  hospitality: { peakHour: 22, width: 5, floor: 35, max: 80 },
-  industrial: { peakHour: 11, width: 3.5, floor: 10, max: 70 },
-  religious: { peakHour: 9.5, width: 2, floor: 6, max: 60 },
-  civic_transit: { peakHour: 8.5, width: 3, floor: 10, max: 75 },
-  retail_food: { peakHour: 13.5, width: 4, floor: 12, max: 85 },
-  other: { peakHour: 12, width: 8, floor: 8, max: 30 }
+const CATEGORY_SHAPES: Record<string, CategoryShape> = {
+  residential: { width: 4.5, floor: 18 },
+  office: { width: 3, floor: 8 },
+  education: { width: 2.2, floor: 4 },
+  healthcare: { width: 9, floor: 45 },
+  hospitality: { width: 5, floor: 35 },
+  industrial: { width: 3.5, floor: 10 },
+  religious: { width: 2, floor: 6 },
+  civic_transit: { width: 3, floor: 10 },
+  retail_food: { width: 4, floor: 12 },
+  other: { width: 8, floor: 8 }
 };
 
 /** Used for any OCC_TYPE value that doesn't match a known category. */
-const DEFAULT_PROFILE = CATEGORY_PROFILES.other;
+const DEFAULT_SHAPE = CATEGORY_SHAPES.other;
 
 /** Normalizes any real number of hours into the circular [0, 24) range. */
 export function normalizeHour(hour: number): number {
@@ -62,40 +62,33 @@ export function normalizeHour(hour: number): number {
 
 /**
  * Builds the Arcade expression that computes a building's occupancy at
- * `simulatedHour` from just its OCC_TYPE category and osm_id. This is what
- * drives the renderer's color visual variable, so all buildings are
- * colored client-side from two lightweight fields — no per-feature
- * JavaScript work, and no per-hour data to fetch or store.
+ * `simulatedHour` from its PEAK_HR and OCC_MAX fields (real numbers,
+ * already jittered per building — see scripts/classify_occ_type.py) and
+ * its OCC_TYPE category (looked up here only for how wide the peak is and
+ * its baseline floor). This drives the renderer's color visual variable,
+ * so all buildings are colored client-side from three lightweight fields
+ * — no per-feature JavaScript work, and no per-hour data to fetch or store.
  */
 export function getOccupancyExpression(simulatedHour: number): string {
   const hour = normalizeHour(simulatedHour);
 
-  const decodeCases = Object.entries(CATEGORY_PROFILES)
-    .map(([type, p]) => `"${type}", {peak: ${p.peakHour}, width: ${p.width}, floor: ${p.floor}, max: ${p.max}}`)
+  const decodeCases = Object.entries(CATEGORY_SHAPES)
+    .map(([type, s]) => `"${type}", {width: ${s.width}, floor: ${s.floor}}`)
     .join(",\n    ");
 
   return `
-    var t = $feature.${OCC_TYPE_FIELD};
-    var id = $feature.${UNIQUE_ID_FIELD};
+    var peak = $feature.${PEAK_HR_FIELD};
+    var maxOcc = $feature.${OCC_MAX_FIELD};
 
-    // Deterministic pseudo-random values in [0, 1) from the building's own
-    // id (a classic linear-congruential formula), used only to jitter this
-    // building's peak hour/intensity a little within its category.
-    var r1 = ((id * 9301 + 49297) % 233280) / 233280;
-    var r2 = (((id * 7 + 13) * 9301 + 49297) % 233280) / 233280;
-
-    var p = Decode(t,
+    var shape = Decode($feature.${OCC_TYPE_FIELD},
     ${decodeCases},
-    {peak: ${DEFAULT_PROFILE.peakHour}, width: ${DEFAULT_PROFILE.width}, floor: ${DEFAULT_PROFILE.floor}, max: ${DEFAULT_PROFILE.max}}
+    {width: ${DEFAULT_SHAPE.width}, floor: ${DEFAULT_SHAPE.floor}}
     );
-
-    var peak = p.peak + (r1 * 2 - 1) * 1.5;
-    var maxOcc = Max(0, Min(100, p.max + (r2 * 2 - 1) * 10));
 
     var d = Abs(${hour} - peak);
     d = Min(d, 24 - d);
 
-    return p.floor + (maxOcc - p.floor) * Exp(-(d * d) / (2 * p.width * p.width));
+    return shape.floor + (maxOcc - shape.floor) * Exp(-(d * d) / (2 * shape.width * shape.width));
   `;
 }
 

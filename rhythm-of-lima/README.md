@@ -16,10 +16,11 @@ sintéticos" label in the app itself, and "Data model" below for exactly how.
   `FeatureLayer`/`MapView` handle rendering — the ~105k features are never
   queried or copied into JavaScript memory.
 - Colors every building by its **current simulated occupancy** (0–100)
-  using a continuous Color Visual Variable. Each building stores exactly
-  one field, `OCC_TYPE` (its use category), and its full 24-hour activity
-  curve is computed live in an Arcade expression from that category plus
-  the current simulated hour — see "Data model" below.
+  using a continuous Color Visual Variable. Each building stores three
+  fields — `OCC_TYPE` (its use category), `PEAK_HR` (the hour its activity
+  peaks) and `OCC_MAX` (its peak intensity) — and its full 24-hour activity
+  curve is computed live in an Arcade expression from those plus the
+  current simulated hour — see "Data model" below.
 - Plays a full simulated day in ~6 real seconds by default, looping
   continuously, with a large digital clock, a draggable 24-hour timeline,
   Play/Pause, and a speed slider (0.25×–4×) to slow it down or speed it up
@@ -88,18 +89,22 @@ vite.config.ts            Vite config; copies @arcgis/core's runtime assets loca
 
 ## Data model
 
-The feature layer stores exactly **one** classification field per building,
-`OCC_TYPE` — a use category such as `"residential"`, `"office"`,
-`"hospitality"`, etc. — plus its existing `osm_id`. There's no per-hour data
-at all. This mirrors how Esri's own "Animate color visual variable" sample
-works: it colors buildings from a single `CNSTRCT_YR` field and the
-current slider value, not from decades of precomputed per-year fields.
+The feature layer stores exactly **three** fields per building —
+`OCC_TYPE` (a use category such as `"residential"`, `"office"`,
+`"hospitality"`), `PEAK_HR` (the real hour, 0-24, this specific building's
+activity peaks at) and `OCC_MAX` (its peak occupancy intensity, 0-100) —
+plus its existing `osm_id`. There's no per-hour data at all: `PEAK_HR` and
+`OCC_MAX` are real, inspectable numbers already baked into the data, and
+the app computes the rest of the 24-hour curve from them live. This
+mirrors how Esri's own "Animate color visual variable" sample works: it
+colors buildings from a single `CNSTRCT_YR` field and the current slider
+value, not from decades of precomputed per-year fields.
 
 An earlier version of this demo instead stored 24 fields per building
 (`OCC_00`..`OCC_23`, one ChatGPT-invented value per hour). That worked, but
 loading 24-25 numeric fields for ~105k features is real memory/network
-cost that a single field avoids entirely — see "Why this is lighter than
-the old 24-field model" below.
+cost that four fields avoids entirely — see "Why this is lighter than the
+old 24-field model" below.
 
 ### How `OCC_TYPE` was derived
 
@@ -119,42 +124,60 @@ OSM building export (`LIMA_Footprints.csv`, not included here — it has
    between office/retail/industrial via a deterministic pseudo-random value
    seeded by `osm_id` (reproducible — not re-randomized on every run).
 
+Once a building has its category, the script also writes out two real
+numbers per building — **not** computed later at render time:
+
+- `PEAK_HR` — the hour (0-24) *this specific building's* activity peaks
+  at, e.g. `13.5`. This is the field the whole animation is driven by, the
+  same role `CNSTRCT_YR` plays in Esri's own "Animate color visual
+  variable" sample — an actual, inspectable value you can open the CSV and
+  read, not something hidden inside the app's code.
+- `OCC_MAX` — this building's peak occupancy intensity (0-100).
+
+Both start from the building's category's typical value (`CATEGORY_BASE` in
+the script) and add a small deterministic jitter seeded by the building's
+own `osm_id`, so buildings in the same category don't all peak at the exact
+same minute — e.g. `31146352,healthcare,12.93,84.9` is one specific
+hospital peaking at 12:56, not "healthcare in general."
+
 Resulting distribution across the real ~105k buildings: **84% residential**,
 6% retail_food, 4% office, 2% education, and the remaining ~4% split across
 industrial, other, religious, healthcare and hospitality — a plausible mix
 for a real city, where most buildings are homes.
 
-To regenerate (e.g. after tweaking the category mapping):
+To regenerate (e.g. after tweaking the category mapping or base peak/max
+values):
 
 ```bash
 python3 scripts/classify_occ_type.py LIMA_Footprints.csv data/LIMA_OCC_TYPE.csv
 ```
 
 Then join that CSV to the building geometries by `osm_id` and republish the
-hosted feature layer with `osm_id` + `OCC_TYPE` only — no `OCC_00`..`OCC_23`,
-`OCC_SRC`, `PEAK_HR` or `OCC_MAX` fields are needed.
+hosted feature layer with `osm_id`, `OCC_TYPE`, `PEAK_HR` and `OCC_MAX` —
+no `OCC_00`..`OCC_23` or `OCC_SRC` fields are needed.
 
 ### Category activity curves
 
-`CATEGORY_PROFILES` in `src/occupancy.ts` defines one daily curve per
-category — a peak hour, how wide that peak is, a baseline floor, and a peak
-intensity — tuned against the real category mix above to produce the
-intended citywide story purely from the aggregate of many buildings peaking
-at different hours: residential dominant overnight and at dawn, offices/
-schools ramping up through the morning, business/retail peaking midday, and
-a shift back toward residential/hospitality in the evening. Each building's
-own `osm_id` seeds a small deterministic jitter on top of its category's
-base peak hour/intensity (same linear-congruential formula as the
-classification script, computed independently in Arcade) so buildings in
-the same category don't pulse in exact lockstep.
+`CATEGORY_SHAPES` in `src/occupancy.ts` defines, per category, how WIDE
+that category's activity peak is and its baseline floor — the only two
+curve parameters *not* stored per building, since they're roughly constant
+within a category (a school's activity window is sharp; a hospital's is
+broad and never drops to zero). Tuned against the real category mix above
+to produce the intended citywide story purely from the aggregate of many
+buildings peaking at different hours: residential dominant overnight and at
+dawn, offices/schools ramping up through the morning, business/retail
+peaking midday, and a shift back toward residential/hospitality in the
+evening. Must match `CATEGORY_BASE`'s category list in
+`scripts/classify_occ_type.py`.
 
 `getOccupancyExpression()` builds the actual Arcade expression: it reads
-`OCC_TYPE` and `osm_id`, looks up that category's curve via `Decode()`,
-applies the jitter, and computes a Gaussian-like falloff from the *circular*
-distance between the injected current simulated hour and the (jittered)
-peak hour. Re-tune any category's peak/width/floor/max directly in
-`CATEGORY_PROFILES` — no data regeneration needed, since the curve is
-computed live, not stored.
+`PEAK_HR` and `OCC_MAX` directly (already-jittered numbers, no computation
+needed), looks up `OCC_TYPE`'s width/floor via `Decode()`, and computes a
+Gaussian-like falloff from the *circular* distance between the injected
+current simulated hour and `PEAK_HR`. Re-tuning a category's curve *shape*
+(width/floor) only needs a code change to `CATEGORY_SHAPES`; re-tuning its
+typical peak hour/intensity (`CATEGORY_BASE`) means regenerating the CSV,
+since those are baked into the data.
 
 ## How the animation works
 
@@ -258,14 +281,15 @@ overlay is shown until the layer and view are ready.
 ## Performance notes
 
 **Why this is lighter than the old 24-field model.** The layer's
-`outFields` is now just `[osm_id, OCC_TYPE]` — two fields per building
-instead of twenty-five — which is the single biggest lever available here:
-less data to fetch, decode and hold in memory for ~105k features,
-independent of anything about the renderer itself. If `OCC_TYPE` ends up
-stored as a wide text field on the hosted layer, that's still worth
-checking with whoever manages it; a short/coded field is cheaper to
-transfer than an arbitrary-length string, though with only one field left
-this matters far less than the old 24-field payload did.
+`outFields` is now `[osm_id, OCC_TYPE, PEAK_HR, OCC_MAX]` — four fields per
+building instead of twenty-five — which is the single biggest lever
+available here: less data to fetch, decode and hold in memory for ~105k
+features, independent of anything about the renderer itself. `PEAK_HR`/
+`OCC_MAX` as numeric fields and `OCC_TYPE` as a short text field are all
+cheap; if `OCC_TYPE` ends up stored as a much longer text field than the
+category names actually need on the hosted layer, that's worth checking
+with whoever manages it, though it matters far less than the old 24-field
+payload did.
 
 **Why Arcade is still used, not a plain `field` reference.** Esri's sample
 animates by changing color-stop *values* against a static `field`
@@ -273,12 +297,13 @@ animates by changing color-stop *values* against a static `field`
 field lookup is close to free for the GPU-based rendering pipeline, while
 Arcade evaluation runs per-feature on the CPU. This app can't quite do the
 same thing: `CNSTRCT_YR` is linear (years only increase) and its distance
-to the slider value is a simple subtraction, but each `OCC_TYPE` category's
-distance to the current hour is *circular* (23:00 is close to 00:00), which
-a plain field+stops model can't express — so computing that distance still
-needs an expression. The expression itself is now cheap regardless
-(`Decode` + a bit of arithmetic over exactly 2 field reads), which is a
-large improvement over the old model's 2-of-24 field reads plus the cost of
+to the slider value is a simple subtraction, but each building's distance
+from `PEAK_HR` to the current hour is *circular* (23:00 is close to 00:00),
+which a plain field+stops model can't express — so computing that distance
+still needs an expression. The expression itself is now cheap regardless:
+it reads `PEAK_HR`/`OCC_MAX` directly (no jitter math anymore — that's
+baked into the stored values) and only does a small `Decode` for
+`OCC_TYPE`'s width/floor, versus the old model's 2-of-24 field reads plus
 rebuilding a brand-new expression string every update.
 
 **The other factor: zoomed-out feature count.** Esri's sample opens at a

@@ -12,12 +12,20 @@ export const FEATURE_LAYER_URL: string = import.meta.env.VITE_FEATURE_LAYER_URL 
 export const UNIQUE_ID_FIELD = "osm_id";
 
 /**
- * The building's use category (e.g. "residential", "office", "hospitality"
- * — see CATEGORY_PROFILES in src/occupancy.ts). This is the only
- * classification field the renderer reads; the whole 24-hour occupancy
- * curve is computed live from it plus the building's own id.
+ * The three classification fields the renderer reads per building (see
+ * scripts/classify_occ_type.py and CATEGORY_SHAPES in src/occupancy.ts):
+ *
+ *   OCC_TYPE  use category, e.g. "residential", "office", "hospitality"
+ *   PEAK_HR   the hour (0-24) this building's activity peaks at
+ *   OCC_MAX   this building's peak occupancy intensity (0-100)
+ *
+ * PEAK_HR and OCC_MAX are real per-building numbers already baked into the
+ * data — the whole 24-hour curve is computed live from these three fields,
+ * not from any stored per-hour data.
  */
 export const OCC_TYPE_FIELD = "OCC_TYPE";
+export const PEAK_HR_FIELD = "PEAK_HR";
+export const OCC_MAX_FIELD = "OCC_MAX";
 
 /**
  * How long a full simulated 24-hour day takes to play, in seconds.

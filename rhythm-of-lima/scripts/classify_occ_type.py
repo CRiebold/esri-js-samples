@@ -1,16 +1,30 @@
 #!/usr/bin/env python3
 """
-Classifies each Lima building footprint into one OCC_TYPE use category,
-from the raw OpenStreetMap export (LIMA_Footprints.csv: osm_id, code,
-fclass, name, type, Shape_Length, Shape_Area, AREA_M2).
+Derives each Lima building footprint's occupancy classification from the
+raw OpenStreetMap export (LIMA_Footprints.csv: osm_id, code, fclass, name,
+type, Shape_Length, Shape_Area, AREA_M2), which has no occupancy data at
+all — only geometry and OSM tags.
 
-This replaces the app's old per-building 24-hour occupancy fields
-(OCC_00..OCC_23) with a single classification field. The full daily
-occupancy curve for each category is computed live in the app's Arcade
-expression (see CATEGORY_PROFILES in src/occupancy.ts) — this script only
-needs to decide which of the ~10 categories each building belongs to.
+Output columns, one row per building:
+  osm_id    unique building id (already present in the source data)
+  OCC_TYPE  use category, e.g. "residential", "office", "hospitality"
+  PEAK_HR   the hour (0-24, real number) this specific building's activity
+            peaks at — a real, inspectable number per building, the same
+            role CNSTRCT_YR plays in Esri's own "Animate color visual
+            variable" sample
+  OCC_MAX   this building's peak occupancy intensity (0-100)
 
-Priority order per building:
+PEAK_HR and OCC_MAX are each category's typical value (CATEGORY_PROFILES
+below) plus a small deterministic jitter seeded by the building's own
+osm_id, so buildings in the same category don't all peak at the exact same
+minute — computed once here and stored, not recomputed at render time.
+OCC_TYPE is still carried along because the app's Arcade expression uses it
+to look up how WIDE this building's activity peak is and its baseline
+floor (see CATEGORY_PROFILES in src/occupancy.ts, which must match the
+table below) — those two shape parameters aren't stored per-building since
+they're roughly constant within a category.
+
+Classification (OCC_TYPE) priority per building:
   1. Its OSM `type` tag, if set (~25% of buildings).
   2. A keyword match against its `name`, if set (~1% of buildings) — catches
      named landmarks (hotels, hospitals, markets, churches...) that have no
@@ -23,8 +37,6 @@ Priority order per building:
 
 Usage:
     python3 classify_occ_type.py LIMA_Footprints.csv LIMA_OCC_TYPE.csv
-
-Output columns: osm_id, OCC_TYPE
 """
 import csv
 import re
@@ -65,16 +77,32 @@ NAME_KEYWORDS = [
 ]
 NAME_PATTERNS = [(re.compile(p, re.IGNORECASE), cat) for p, cat in NAME_KEYWORDS]
 
+# Base (peakHour, peakOccMax) per category — must match CATEGORY_PROFILES'
+# peak/max in src/occupancy.ts. width/floor stay there since they're
+# looked up by OCC_TYPE at render time, not stored per building.
+CATEGORY_BASE = {
+    "residential": (1, 70),
+    "office": (12.5, 85),
+    "education": (10, 90),
+    "healthcare": (14, 90),
+    "hospitality": (22, 80),
+    "industrial": (11, 70),
+    "religious": (9.5, 60),
+    "civic_transit": (8.5, 75),
+    "retail_food": (13.5, 85),
+    "other": (12, 30),
+}
+
 
 def det_rand(seed: int) -> float:
     """Deterministic pseudo-random value in [0, 1) from an integer seed
     (classic linear-congruential formula) — same building always gets the
-    same fallback category across re-runs, without storing extra data."""
+    same jitter across re-runs, without storing an RNG seed anywhere."""
     x = (seed * 9301 + 49297) % 233280
     return x / 233280
 
 
-def classify(osm_id: int, osm_type: str, name: str, area: float) -> str:
+def classify_type(osm_id: int, osm_type: str, name: str, area: float) -> str:
     if osm_type in TYPE_MAP:
         return TYPE_MAP[osm_type]
     if name:
@@ -89,6 +117,15 @@ def classify(osm_id: int, osm_type: str, name: str, area: float) -> str:
     return "office" if r < 0.45 else ("retail_food" if r < 0.8 else "industrial")
 
 
+def peak_hour_and_max(osm_id: int, occ_type: str) -> tuple[float, float]:
+    base_peak, base_max = CATEGORY_BASE[occ_type]
+    r1 = det_rand(osm_id)
+    r2 = det_rand(osm_id * 7 + 13)
+    peak_hr = (base_peak + (r1 * 2 - 1) * 1.5) % 24
+    occ_max = max(0.0, min(100.0, base_max + (r2 * 2 - 1) * 10))
+    return round(peak_hr, 2), round(occ_max, 1)
+
+
 def main() -> None:
     if len(sys.argv) != 3:
         print(f"Usage: {sys.argv[0]} <input LIMA_Footprints.csv> <output CSV>", file=sys.stderr)
@@ -100,18 +137,19 @@ def main() -> None:
     with open(in_path, encoding="utf-8-sig") as f_in, open(out_path, "w", newline="", encoding="utf-8") as f_out:
         reader = csv.DictReader(f_in)
         writer = csv.writer(f_out)
-        writer.writerow(["osm_id", "OCC_TYPE"])
+        writer.writerow(["osm_id", "OCC_TYPE", "PEAK_HR", "OCC_MAX"])
 
         n = 0
         for row in reader:
             osm_id = int(row["osm_id"])
-            occ_type = classify(
+            occ_type = classify_type(
                 osm_id,
                 row.get("type", "").strip(),
                 row.get("name", "").strip(),
                 float(row.get("AREA_M2", 0) or 0),
             )
-            writer.writerow([osm_id, occ_type])
+            peak_hr, occ_max = peak_hour_and_max(osm_id, occ_type)
+            writer.writerow([osm_id, occ_type, peak_hr, occ_max])
             counts[occ_type] += 1
             n += 1
 
