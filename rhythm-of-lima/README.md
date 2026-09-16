@@ -273,6 +273,19 @@ whole city moving in lockstep. It only ever adds brightness on top of the
 main curve, so each building's true `PEAK_HR` flash is always its
 brightest moment of the day.
 
+### UI chrome
+
+The title card (top-left) and clock/timeline HUD (bottom-left, shrunk down
+so the map — not the chrome — stays the focal point) both load "Space
+Grotesk" for headings and "Inter" for body copy from Google Fonts
+(`index.html`), falling back to the system sans-serif stack if that fetch
+ever fails. The title uses a warm yellow (`--accent-warm` in
+`src/style.css`) against the map's cool cyan/purple palette for contrast,
+with a left accent bar tying it to the same color; body/credit text uses
+higher-contrast, non-uppercase copy so it's actually legible at a glance.
+The clock is labeled "Hora simulada" since it's a 24h simulated readout,
+not a real AM/PM clock.
+
 ## Notes on `arcgisConfig.ts` / local SDK assets
 
 By default `@arcgis/core` fetches its runtime assets (worker scripts,

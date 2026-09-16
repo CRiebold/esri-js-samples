@@ -4,6 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>El Ritmo de Lima</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
@@ -30,12 +36,13 @@
     </header>
 
     <footer id="hud">
+      <div class="clockLabel">Hora simulada</div>
       <div id="clock">00:00</div>
 
       <div id="timelineRow">
         <button id="playPauseBtn" type="button" aria-label="Pausar">
-          <svg id="iconPause" viewBox="0 0 24 24" width="20" height="20"><path d="M6 4h4v16H6zM14 4h4v16h-4z" fill="currentColor"/></svg>
-          <svg id="iconPlay" viewBox="0 0 24 24" width="20" height="20" hidden><path d="M7 4l14 8-14 8z" fill="currentColor"/></svg>
+          <svg id="iconPause" viewBox="0 0 24 24" width="15" height="15"><path d="M6 4h4v16H6zM14 4h4v16h-4z" fill="currentColor"/></svg>
+          <svg id="iconPlay" viewBox="0 0 24 24" width="15" height="15" hidden><path d="M7 4l14 8-14 8z" fill="currentColor"/></svg>
         </button>
 
         <input id="timeline" type="range" min="0" max="1440" step="1" value="0" aria-label="Hora del día" />
