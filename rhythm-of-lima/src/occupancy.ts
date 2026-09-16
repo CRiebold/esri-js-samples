@@ -1,4 +1,13 @@
-import { OCC_TYPE_FIELD, PEAK_HR_FIELD, OCC_MAX_FIELD, QUIET_HOURS_END, QUIET_HOURS_TIME_SHARE } from "./config";
+import {
+  OCC_TYPE_FIELD,
+  PEAK_HR_FIELD,
+  OCC_MAX_FIELD,
+  UNIQUE_ID_FIELD,
+  QUIET_HOURS_END,
+  QUIET_HOURS_TIME_SHARE,
+  RIPPLE_CYCLES_PER_DAY,
+  RIPPLE_AMPLITUDE
+} from "./config";
 
 /**
  * Occupancy model
@@ -68,6 +77,14 @@ export function normalizeHour(hour: number): number {
  * its baseline floor). This drives the renderer's color visual variable,
  * so all buildings are colored client-side from three lightweight fields
  * — no per-feature JavaScript work, and no per-hour data to fetch or store.
+ *
+ * On top of that main curve, a faster "twinkle" (see RIPPLE_CYCLES_PER_DAY
+ * in src/config.ts) adds a modest, capped boost derived from the
+ * building's own id and the current hour — so instead of one synchronized
+ * citywide wave (everything dim, then one big midday-to-evening swell),
+ * buildings flicker up and down individually throughout the day. Only the
+ * "up" half of that ripple is added (never subtracted), so it can only
+ * ever brighten a building above its main curve, never dim it below.
  */
 export function getOccupancyExpression(simulatedHour: number): string {
   const hour = normalizeHour(simulatedHour);
@@ -88,7 +105,13 @@ export function getOccupancyExpression(simulatedHour: number): string {
     var d = Abs(${hour} - peak);
     d = Min(d, 24 - d);
 
-    return shape.floor + (maxOcc - shape.floor) * Exp(-(d * d) / (2 * shape.width * shape.width));
+    var base = shape.floor + (maxOcc - shape.floor) * Exp(-(d * d) / (2 * shape.width * shape.width));
+
+    var ripplePhase = (Mod($feature.${UNIQUE_ID_FIELD}, 997) / 997) * 6.283185;
+    var rippleWave = Sin(${hour} * (6.283185 * ${RIPPLE_CYCLES_PER_DAY} / 24) + ripplePhase);
+    var rippleBoost = Max(0, rippleWave) * ${RIPPLE_AMPLITUDE};
+
+    return Min(100, base + rippleBoost);
   `;
 }
 

@@ -81,33 +81,33 @@ NAME_PATTERNS = [(re.compile(p, re.IGNORECASE), cat) for p, cat in NAME_KEYWORDS
 # peak/max in src/occupancy.ts. width/floor stay there since they're
 # looked up by OCC_TYPE at render time, not stored per building.
 #
-# Every base here is deliberately kept at 84+ so that, once
-# peak_hour_and_max()'s +/-OCC_MAX_JITTER lands, EVERY building's peak
-# value clears the color ramp's "70" (purple) stop with room to spare —
-# the whole point of the animation is that every building visibly lights
-# up once a day, not just the "busiest" categories. An earlier version of
-# this table had "other" at 30 and "religious" at 60, which meant those
-# buildings (and roughly half of "residential"/"industrial") never
-# brightened past the idle, translucent-white state all day. Categories
-# still differ in WHEN they peak (peak hour) and how long/high they idle
-# (floor/width in src/occupancy.ts) — just not in whether they shine.
+# Every base here is 94+ so that, once peak_hour_and_max()'s
+# +/-OCC_MAX_JITTER lands, EVERY building's peak value clears the color
+# ramp's "88" (hot pink/cyan) stop, not just the dimmer "70" (purple) one
+# — the whole point of the animation is that every building visibly
+# *shines*, not just crosses into a duller mid-tone, once a day. (An
+# earlier version had "other" at 30 and "religious" at 60 — those, and
+# roughly half of "residential"/"industrial", never brightened past idle
+# at all.) Categories still differ in WHEN they peak (peak hour) and how
+# long/high they idle (floor/width in src/occupancy.ts) — just not in
+# whether, or how brightly, they shine.
 CATEGORY_BASE = {
-    "residential": (1, 90),
-    "office": (12.5, 90),
-    "education": (10, 92),
-    "healthcare": (14, 92),
-    "hospitality": (22, 88),
-    "industrial": (11, 86),
-    "religious": (9.5, 86),
-    "civic_transit": (8.5, 88),
-    "retail_food": (13.5, 90),
-    "other": (12, 84),
+    "residential": (1, 96),
+    "office": (12.5, 96),
+    "education": (10, 97),
+    "healthcare": (14, 97),
+    "hospitality": (22, 95),
+    "industrial": (11, 94),
+    "religious": (9.5, 94),
+    "civic_transit": (8.5, 95),
+    "retail_food": (13.5, 96),
+    "other": (12, 94),
 }
 
 # How far occ_max can jitter from its category base, per building. Kept
-# small enough that even the lowest base (84) minus the jitter (8) still
-# lands at 76 — safely past the "70" stop for every single building.
-OCC_MAX_JITTER = 8
+# small enough that even the lowest base (94) minus the jitter (6) still
+# lands at 88 — right at the "shine" stop for every single building.
+OCC_MAX_JITTER = 6
 
 
 def det_rand(seed: int) -> float:

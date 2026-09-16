@@ -57,6 +57,23 @@ export const QUIET_HOURS_END = 8;
 export const QUIET_HOURS_TIME_SHARE = QUIET_HOURS_END / 24;
 
 /**
+ * A secondary, faster "twinkle" layered on top of each building's main
+ * daily curve (see getOccupancyExpression in src/occupancy.ts). Without
+ * it, the whole city moves as one wave — quiet in the morning, one big
+ * midday-to-evening swell, quiet again — because most buildings share a
+ * category-typical peak hour. RIPPLE_CYCLES_PER_DAY gives every building
+ * that many extra little pulses across the day, each at a phase derived
+ * from its own UNIQUE_ID_FIELD, so — instead of one synchronized wave —
+ * buildings flicker up and down individually (with some incidental
+ * clustering, since nearby buildings often have nearby ids in the OSM
+ * export). RIPPLE_AMPLITUDE caps how much brightness that twinkle can add
+ * on its own, so a building's true PEAK_HR flash is still always its
+ * brightest moment of the day.
+ */
+export const RIPPLE_CYCLES_PER_DAY = 8;
+export const RIPPLE_AMPLITUDE = 18;
+
+/**
  * Lima, Peru — the fallback center/scale if the layer's extent can't be
  * read, AND the view's hard `minScale` cap (see src/map.ts). Esri's own
  * "Animate color visual variable" sample bounds how far you can zoom out

@@ -19,17 +19,18 @@ import { getOccupancyExpression } from "./occupancy";
 
 /**
  * The color ramp that gives Lima its "living city" feel. Idle buildings
- * are a faint, translucent white — present and readable as city fabric
- * without demanding attention — and stay muted through medium occupancy
- * (0-70). Only genuinely busy buildings (roughly the top third of the
- * range) climb fast through hot magenta into a glowing cyan flash. That
- * asymmetry, paired with a high bloom threshold below, is what makes
- * buildings visibly "light up and fade" as their occupancy peaks and
- * passes, rather than sitting brightly lit for a large share of the loop.
+ * sit at a dim, dark purple — present and glowing faintly as city fabric,
+ * rather than a flat gray/white that reads as "off" — and climb through
+ * that same purple family, warming fast through hot magenta into a
+ * glowing cyan flash for genuinely busy buildings (roughly the top third
+ * of the range). That asymmetry, paired with a high bloom threshold
+ * below, is what makes buildings visibly "light up and fade" as their
+ * occupancy peaks and passes, rather than sitting brightly lit for a
+ * large share of the loop — while never looking fully dark in between.
  */
 const OCCUPANCY_COLOR_STOPS = [
-  { value: 0, color: "rgba(255, 255, 255, 0.1)" },
-  { value: 40, color: "rgba(255, 255, 255, 0.22)" },
+  { value: 0, color: "rgba(76, 20, 92, 0.45)" },
+  { value: 40, color: "rgba(124, 26, 145, 0.65)" },
   { value: 70, color: "#9c14a8" },
   { value: 88, color: "#ff36d0" },
   { value: 100, color: "#22ffe6" }

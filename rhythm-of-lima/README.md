@@ -236,19 +236,36 @@ a stretch still feels dead.
 ## Visual design
 
 `OCCUPANCY_COLOR_STOPS` in `src/map.ts` is deliberately back-loaded: idle
-buildings (0) are a faint, translucent white — present as city fabric
-without drawing the eye — staying muted through 0–70, and only 70–100
-ramps quickly through hot pink into bright cyan. Combined with a high
-bloom threshold (`bloom(2.8, 0px, 65%)`, only pixels in roughly the top
-third of brightness actually bloom), a building only "flashes" while
-genuinely near its peak, then fades quickly — rather than staying visibly
-lit for a large share of the loop.
+buildings (0) sit at a dim, dark purple — glowing faintly as city fabric,
+never a flat gray/white that reads as "off" — staying muted through 0–70,
+and only 70–100 ramps quickly through hot pink into bright cyan. Combined
+with a high bloom threshold (`bloom(2.8, 0px, 65%)`, only pixels in
+roughly the top third of brightness actually bloom), a building "flashes"
+while genuinely near its peak, then fades — rather than staying visibly
+lit for a large share of the loop, while never looking fully dark
+in between.
 
-Because each category has a single peak (not an arbitrary multi-peak
-curve), a building's color rises and falls smoothly exactly once per loop —
-climbing to its brightest near its category's peak hour and fading on
-either side of it, circularly (so a residential building peaking at 1am
-is already brightening again late in the evening).
+Every building's `CATEGORY_BASE` intensity in `scripts/classify_occ_type.py`
+is high enough (94+, jittered) that its true peak always clears the "88"
+hot-pink/cyan stop — every single building actually *shines* once a day,
+not just crosses into a duller mid-tone.
+
+Because each category has a single main peak (not an arbitrary multi-peak
+curve), a building's color rises and falls smoothly once per loop around
+its category's peak hour, circularly (so a residential building peaking at
+1am is already brightening again late in the evening) — but that alone
+made the whole city read as *one* synchronized wave (quiet mornings, one
+big midday-to-evening swell, quiet again), since most buildings share a
+category-typical peak. `getOccupancyExpression()` in `src/occupancy.ts`
+layers a faster "twinkle" on top (`RIPPLE_CYCLES_PER_DAY`/
+`RIPPLE_AMPLITUDE` in `src/config.ts`): a small, capped brightness boost
+that cycles several times a day, phase-shifted per building by its own
+`osm_id`, so buildings flicker up and down individually — some in step
+with nearby-id neighbors (often literally nearby buildings, since OSM
+export order tends to cluster by location), most not — instead of the
+whole city moving in lockstep. It only ever adds brightness on top of the
+main curve, so each building's true `PEAK_HR` flash is always its
+brightest moment of the day.
 
 ## Notes on `arcgisConfig.ts` / local SDK assets
 
